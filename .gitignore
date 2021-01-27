@@ -1,0 +1,12 @@
+*.d
+*.o
+bin/
+nbproject/
+nbproject
+*.o
+*.d
+out
+run.sh
+oot
+oot/
+
