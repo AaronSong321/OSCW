@@ -6,6 +6,6 @@ nbproject
 *.o
 *.d
 out
-oot
-oot/
+# oot
+# oot/
 .vscode/
