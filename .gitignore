@@ -9,3 +9,4 @@ out
 oot
 oot/
 .vscode/
+*.DS_Store

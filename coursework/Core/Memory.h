@@ -1,3 +1,12 @@
+//
+// Created by Dimanche on 29/01/2021.
+//
+
+#pragma once
+
+#ifndef CPP_MEMORY_H
+#define CPP_MEMORY_H
+
 
 namespace Commons{
     template <class T> struct SharedPointer;
@@ -5,58 +14,81 @@ namespace Commons{
 
     template<class T,class U>
     bool operator==(const SharedPointer<T> lhs, const SharedPointer<U> rhs);
-    template<class T,class U>
-    bool operator!=(const SharedPointer<T> lhs, const SharedPointer<U> rhs);
 
     template <class T>
     struct SharedPointer{
     private:
-        T* const _data;
-        int* const _count;
+        T* _data;
+        int* _count;
         SharedPointer(T* rawPointer, int* counterPointer): _data(rawPointer), _count(counterPointer){
             ++*_count;
         }
-        friend struct WeakPointer<T>;
+        template <class U>
+        friend struct WeakPointer;
+        template <class U>
+        friend struct SharedPointer;
 
-    public:
-        using ElementType = T;
-        using WeakType = WeakPointer<T>;
-        SharedPointer(T* rawPointer): _data(rawPointer), _count(new int(1)){
-        }
-        SharedPointer(const SharedPointer<T>& p): _data(p._data), _count(p._count) {
+    private:
+        void Hold(){
             ++*_count;
         }
-        SharedPointer(SharedPointer<T>&& p): _data(p._data), _count(p._count) {
-            ++*_count;
-        }
-        SharedPointer<T> operator=(const SharedPointer<T> other) {
-            return SharedPointer<T>(other);
-        }
-        SharedPointer<T> operator=(SharedPointer<T>&& other) {
-            return SharedPointer<T>(other);
-        }
-        ~SharedPointer(){
+        void Release() noexcept{
             if (!--*_count){
                 delete _data;
                 delete _count;
             }
         }
-        T* operator->(){
+
+    public:
+        using ElementType = T;
+        using WeakType = WeakPointer<T>;
+        explicit SharedPointer(T* rawPointer): _data(rawPointer), _count(rawPointer?new int(1):0){
+        }
+        SharedPointer(const SharedPointer<T>& p): _data(p._data), _count(p._count) {
+            ++*_count;
+        }
+        SharedPointer(SharedPointer<T>&& p) noexcept: _data(p._data), _count(p._count) {
+            ++*_count;
+        }
+        SharedPointer<T>& operator=(SharedPointer<T>& other){
+            other.Hold();
+            Release();
+            _data = other._data;
+            _count = other._count;
+            return *this;
+        }
+        SharedPointer<T>& operator=(void*){
+            Release();
+            _data = 0;
+            _count = 0;
+            return *this;
+        }
+        SharedPointer<T>& operator=(SharedPointer<T>&& other){
+            other.Hold();
+            Release();
+            _data = other._data;
+            _count = other._count;
+            return *this;
+        }
+        ~SharedPointer(){
+            Release();
+        }
+        T* operator->() const {
             return _data;
         }
-        T& operator*(){
+        T& operator*() const{
             return *_data;
         }
         operator bool(){
             return _data != 0;
         }
-        T* Get(){return _data;}
-        bool IsNull(){return _data == 0;}
+        T* Get() const { return _data; }
+
     };
 
     template<class T, class... ArgTypes>
     inline SharedPointer<T> MakeShared(ArgTypes&&... objects){
-        auto p=new T(Forward<ArgTypes>(objects)...);
+        auto p = new T(Forward<ArgTypes>(objects)...);
         return SharedPointer<T>(p);
     }
 
@@ -66,7 +98,7 @@ namespace Commons{
     }
     template<class T,class U>
     bool operator!=(const SharedPointer<T> lhs, const SharedPointer<U> rhs){
-        return lhs.Get() != rhs.Get();
+        return !(lhs == rhs);
     }
     // template<class T>
     // bool operator==(const SharedPointer<T> p, std::nullptr_t){
@@ -85,7 +117,7 @@ namespace Commons{
 
     public:
         using ElementType = T;
-        WeakPointer(const SharedPointer<T>& p): _data(p.data), _count(p._count){
+        explicit WeakPointer(const SharedPointer<T>& p): _data(p.data), _count(p._count){
         }
         SharedPointer<T>&& Pin(){
             return SharedPointer<T>(_data, _count);
@@ -93,3 +125,15 @@ namespace Commons{
     };
 }
 
+// #include <cstdlib>
+// void* operator new (unsigned long n){
+//     void* const p = malloc(n);
+//     return p;
+// }
+// void operator delete(void* p){
+//     if (!p)
+//         free(p);
+// }
+
+
+#endif //CPP_MEMORY_H
