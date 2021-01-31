@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string.h>
 #include "Memory.h"
 #include "Exception.h"
 #include "Collection.h"
@@ -111,18 +110,19 @@ namespace Commons
         TKey GetKey() const {
             return _key;
         }
+        FibonacciNode<TKey> GetChild() const { return _child; }
+        FibonacciNode<TKey> GetLeft() const { return _left; }
+        FibonacciNode<TKey> GetRight() const { return _right; }
 
         FibonacciNode(TKey key, SharedPointer<FibonacciHeap<TKey>> tree):_key(key),_left(0),_right(0),_child(0),_parent(0),_degree(0),_mark(false),_minimumCausedByDeletion(false),_tree(tree) {
         }
-//        OverloadComparisonOperatorsDeclaration1(FibonacciNode, TKey)
-
-        Collections::IEnumerable<FibonacciNode<TKey>> GetChildren() const {
-            return Collections::_impl::AnonymousEnumerable(FibonacciNodeChildrenEnumerator(MakeShared(*this)));
-        }
     };
 
-//    OverloadComparisonOperatorDefinition1(FibonacciNode, TKey)
-
+    template <class TKey>
+    SharedPointer<IEnumerable<FibonacciNode<TKey>>> GetChildren(SharedPointer<FibonacciNode<TKey>> node){
+        auto src = EnumeratorToEnumerable(FibonacciNodeChildrenEnumerator(node));
+        return SharedPointer(src).StaticCast<IEnumerable<FibonacciNode<TKey>>();
+    }
 
     template <class TKey>
     class FibonacciNodeChildrenEnumerator: public Collections::IEnumerator<FibonacciNode<TKey>> {
@@ -291,7 +291,7 @@ namespace Commons
         FibonacciNode<TKey> ExtractMin(){
             auto z = _min;
             if (!z){
-                z->GetChildren().ForEach([this](SharedPointer<FibonacciNode<TKey>> node) { AddToRootList(node); node->_parent = 0; });
+                GetChildren(z)->ForEach([this](SharedPointer<FibonacciNode<TKey>> node) { AddToRootList(node); node->_parent = 0; });
             }
             RemoveFromRootList(z);
             if (z == z->_right)

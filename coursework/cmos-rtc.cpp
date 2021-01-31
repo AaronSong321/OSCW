@@ -9,7 +9,6 @@
 #include <infos/drivers/timer/rtc.h>
 #include <infos/kernel/log.h>
 #include <arch/x86/pio.h>
-#include "commons/SmartPointer.hpp"
 
 using namespace infos::drivers;
 using namespace infos::drivers::timer;

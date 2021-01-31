@@ -34,7 +34,7 @@ export linker-script    := $(top-dir)/kernel.ld
 export source-dirs  := arch/$(arch) kernel/ util/ drivers/ mm/ fs/
 
 ifneq ($(wildcard $(top-dir)/oot/.),)
-  export source-dirs += oot/
+  export source-dirs += oot/ oot/CoreSource
 endif
 
 export main-cpp-src := $(patsubst %,$(top-dir)/%,$(shell find $(source-dirs) | grep -E "\.cpp$$"))

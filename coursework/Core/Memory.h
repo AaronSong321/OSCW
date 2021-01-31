@@ -70,6 +70,11 @@ namespace Commons{
             _count = other._count;
             return *this;
         }
+
+        bool operator==(const SharedPointer<T>& other) const{
+            return _data == other._data;
+        }
+
         ~SharedPointer(){
             Release();
         }
@@ -84,6 +89,41 @@ namespace Commons{
         }
         T* Get() const { return _data; }
 
+    private:
+        template <class TargetType>
+        SharedPointer<TargetType> ConstructPointerAtType(TargetType* ptr) {
+            if (ptr){
+                Hold();
+                return SharedPointer<TargetType>(ptr, _count);
+            }
+            else
+                return SharedPointer<TargetType>(0);
+        }
+
+    public:
+        template <class TBase>
+        SharedPointer<TBase> StaticCast() {
+            auto data = static_cast<TBase*>(_data);
+            return ConstructPointerAtType(data);
+        }
+
+        template <class TDerived>
+        SharedPointer<TDerived> DynamicCast() {
+            auto data = dynamic_cast<TDerived*>(_data);
+            return ConstructPointerAtType(data);
+        }
+
+        template <class TRemoveCV>
+        SharedPointer<TRemoveCV> ConstCast() {
+            auto data = const_cast<TRemoveCV*>(_data);
+            return ConstructPointerAtType(data);
+        }
+
+        template <class TFP>
+        SharedPointer<TFP> ReinterpretCast(){
+            auto data = reinterpret_cast<TFP*>(_data);
+            return ConstructPointerAtType(data);
+        }
     };
 
     template<class T, class... ArgTypes>

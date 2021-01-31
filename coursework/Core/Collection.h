@@ -39,18 +39,18 @@ namespace Commons::Collections{
         }
     };
     #define IValueEnumerator IEnumerator
-    #else
-    template <class T>
-    class IValueEnumerator{
-    public:
-        typedef T EnumeratorType;
-        virtual EnumeratorType Get() const = 0;
-        virtual bool MoveNext() = 0;
-        template <class... ArgTypes>
-        static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
-            return T(Forward<ArgTypes>(args)...);
-        }
-    };
+    // #else
+    // template <class T>
+    // class IValueEnumerator{
+    // public:
+    //     typedef T EnumeratorType;
+    //     virtual EnumeratorType Get() const = 0;
+    //     virtual bool MoveNext() = 0;
+    //     template <class... ArgTypes>
+    //     static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
+    //         return T(Forward<ArgTypes>(args)...);
+    //     }
+    // };
     #endif
 
     template <class T>
@@ -69,6 +69,15 @@ namespace Commons::Collections{
         };
     }
 
+    template <class T>
+    IEnumerable<T> EnumeratorToEnumerable(const IEnumerator<T>& enumerator){
+        return _impl::AnonymousEnumerable(enumerator);
+    }
+    template <class T>
+    IEnumerable<T> EnumeratorToEnumerable(IEnumerator<T>&& enumerator){
+        return _impl::AnonymousEnumerable(enumerator);
+    }
+
     namespace _impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;
@@ -83,7 +92,7 @@ namespace Commons::Collections{
     private:
 
     public:
-        virtual IEnumerator<T> GetEnumerator() const = 0;
+        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const = 0;
 
         void ForEach(Function(void, T) action){
             auto iterator = GetEnumerator();
@@ -92,11 +101,13 @@ namespace Commons::Collections{
             }
         }
         template <class U>
-        IEnumerable<U> Transform(Function(U, T) trans){
-            return _impl::AnonymousEnumerable(_impl::_IEnumerable_Transform_IEnumerator(*this, trans));
+        SharedPointer<IEnumerable<U>> Transform(Function(U, T) trans){
+            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            return SharedPointer(ptr).StaticCast();
         }
-        IEnumerable<T> Filter(Function(bool, T) filter){
-            return _impl::AnonymousEnumerable(_impl::_IEnumerable_Filter_IEnumerator(*this, filter));
+        SharedPointer<IEnumerable<T>> Filter(Function(bool, T) filter){
+            auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
+            return SharedPointer(ptr).StaticCast();
         }
     };
 

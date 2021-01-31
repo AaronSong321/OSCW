@@ -6,9 +6,10 @@
 #define CPP_FUNC_H
 #include "TypeTraits.h"
 
-template <class RetType, class... ArgTypes>
-RetType __SomeUglyFunction(ArgTypes...);
-#define Function(RetType, ...) decltype(&__SomeUglyFunction<RetType, __VA_ARGS__>)
+// template <class RetType, class... ArgTypes>
+// RetType __SomeUglyFunction(ArgTypes...);
+// #define Function(RetType, ...) decltype(&__SomeUglyFunction<RetType, __VA_ARGS__>)
+#define Function(RetType, ...) RetType (*)(__VA_ARGS__)
 
 namespace Commons{
     /**
@@ -27,7 +28,10 @@ namespace Commons{
         RetType operator()(ArgTypes&&... args) const {
             return _fpointer(Forward<ArgTypes>(args)...);
         }
-        friend bool operator==(const Fun<RetType, ArgTypes...>&, const Fun<RetType, ArgTypes...>&) = default;
+        // bool operator==(const Fun<RetType, ArgTypes...>&) const = default;
+        bool operator==(const Fun<RetType, ArgTypes...>& other) const{
+            return _fpointer == other._fpointer;
+        }
 
         operator Function(RetType, ArgTypes...)(){
             return _fpointer;
@@ -41,6 +45,14 @@ namespace Commons{
         }
     };
 
+    template <class RetType, class... ArgTypes>
+    struct Fun2{
+        private:
+        RetType (*_ptr)(ArgTypes...);
+        public:
+        Fun2(FuncType f): _ptr(f){}
+        
+    }
 }
 
 #endif //CPP_FUNC_H

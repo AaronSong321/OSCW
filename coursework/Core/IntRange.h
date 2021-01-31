@@ -9,6 +9,7 @@
 #include "Concepts.h"
 
 namespace Commons{
+    using namespace Collections;
     #if ENABLECONCEPT
     template <Integral T>
     #else
@@ -22,7 +23,7 @@ namespace Commons{
         #else
         template <class T>
         #endif
-        class Range_Enumerator: public Collections::IValueEnumerator<T>{
+        class Range_Enumerator: public IEnumerator<T>{
         private:
             const T _start;
             const T _end;
@@ -36,7 +37,7 @@ namespace Commons{
                 return ++_current != _end;
             }
             virtual SharedPointer<T> Get() const override {
-                return MakeShared(_current);
+                return MakeShared<T>(_current);
             }
         };
     }
@@ -46,7 +47,7 @@ namespace Commons{
     #else
     template <class T>
     #endif
-    struct Range: public Collections::IEnumerable<T> {
+    struct Range: public IEnumerable<T> {
     private:
         const T _start;
         const T _end;
@@ -55,8 +56,10 @@ namespace Commons{
         }
         T GetStart() const { return _start; }
         T GetEnd() const { return _end; }
-        virtual Collections::IEnumerable<T> GetEnumerator() override {
-            return Collections::_impl::AnonymousEnumerable(_impl::Range_Enumerator(*this));
+
+        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+            auto e = new ::Commons::_impl::Range_Enumerator(*this);
+            return SharedPointer(e).StaticCast();
         }
 
     };
