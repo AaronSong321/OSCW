@@ -27,6 +27,8 @@ namespace Commons{
         friend struct WeakPointer;
         template <class U>
         friend struct SharedPointer;
+        template <class U>
+        friend SharedPointer<U> MakeTemp(U*);
 
     private:
         void Hold(){
@@ -50,6 +52,9 @@ namespace Commons{
         SharedPointer(SharedPointer<T>&& p) noexcept: _data(p._data), _count(p._count) {
             ++*_count;
         }
+        SharedPointer(): _data(0), _count(0){
+        }
+
         SharedPointer<T>& operator=(SharedPointer<T>& other){
             other.Hold();
             Release();
@@ -84,7 +89,7 @@ namespace Commons{
         T& operator*() const{
             return *_data;
         }
-        operator bool(){
+        operator bool() const {
             return _data != 0;
         }
         T* Get() const { return _data; }
@@ -102,29 +107,47 @@ namespace Commons{
 
     public:
         template <class TBase>
-        SharedPointer<TBase> StaticCast() {
-            auto data = static_cast<TBase*>(_data);
-            return ConstructPointerAtType(data);
-        }
-
+        SharedPointer<TBase> StaticCast();
         template <class TDerived>
-        SharedPointer<TDerived> DynamicCast() {
-            auto data = dynamic_cast<TDerived*>(_data);
-            return ConstructPointerAtType(data);
-        }
+        SharedPointer<TDerived> DynamicCast();
 
-        template <class TRemoveCV>
-        SharedPointer<TRemoveCV> ConstCast() {
-            auto data = const_cast<TRemoveCV*>(_data);
-            return ConstructPointerAtType(data);
-        }
+        // template <class TRemoveCV>
+        // SharedPointer<TRemoveCV> ConstCast() {
+        //     auto data = const_cast<TRemoveCV*>(_data);
+        //     return ConstructPointerAtType(data);
+        // }
 
-        template <class TFP>
-        SharedPointer<TFP> ReinterpretCast(){
-            auto data = reinterpret_cast<TFP*>(_data);
-            return ConstructPointerAtType(data);
-        }
+        // template <class TFP>
+        // SharedPointer<TFP> ReinterpretCast(){
+        //     auto data = reinterpret_cast<TFP*>(_data);
+        //     return ConstructPointerAtType(data);
+        // }
     };
+
+    template <class T>
+    template <class TBase>
+    SharedPointer<TBase> SharedPointer<T>::StaticCast() {
+        auto data = static_cast<TBase*>(_data);
+        return ConstructPointerAtType(data);
+    }
+    template <class T>
+    template <class TBase>
+    SharedPointer<TBase> SharedPointer<T>::DynamicCast() {
+        auto data = dynamic_cast<TBase*>(_data);
+        return ConstructPointerAtType(data);
+    }
+    // template <class T>
+    // template <class TBase>
+    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
+    //     auto data = static_cast<TBase*>(_data);
+    //     return ConstructPointerAtType(data);
+    // }
+    // template <class T>
+    // template <class TBase>
+    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
+    //     auto data = static_cast<TBase*>(_data);
+    //     return ConstructPointerAtType(data);
+    // }
 
     template<class T, class... ArgTypes>
     inline SharedPointer<T> MakeShared(ArgTypes&&... objects){
@@ -132,48 +155,58 @@ namespace Commons{
         return SharedPointer<T>(p);
     }
 
-    template<class T,class U>
+    template <class T>
+    inline SharedPointer<T> MakeTemp(T* rawPointer){
+        return SharedPointer(rawPointer, new int(100));
+    }
+
+    template<class T, class U>
     bool operator==(const SharedPointer<T> lhs, const SharedPointer<U> rhs){
         return lhs.Get() == rhs.Get();
     }
-    template<class T,class U>
+    template<class T, class U>
     bool operator!=(const SharedPointer<T> lhs, const SharedPointer<U> rhs){
         return !(lhs == rhs);
     }
-    // template<class T>
-    // bool operator==(const SharedPointer<T> p, std::nullptr_t){
-    //     return p == nullptr;
-    // }
-    // template<class T>
-    // bool operator!=(const SharedPointer<T> p, std::nullptr_t){
-    //     return p != nullptr;
-    // }
 
     template <class T>
     struct WeakPointer{
     private:
-        T* const _data;
-        int* const _count;
+        T* _data;
+        int* _count;
 
     public:
         using ElementType = T;
-        explicit WeakPointer(const SharedPointer<T>& p): _data(p.data), _count(p._count){
+        explicit WeakPointer(const SharedPointer<T>& p): _data(p._data), _count(p._count){
         }
-        SharedPointer<T>&& Pin(){
+        WeakPointer(void*): _data(0), _count(0){ }
+        SharedPointer<T> Pin() const {
             return SharedPointer<T>(_data, _count);
+        }
+
+        WeakPointer& operator=(const SharedPointer<T>& p){
+            _data = p._data;
+            _count = p._count;
+            return *this;
+        }
+        // WeakPointer& operator=(const WeakPointer<T>& p){
+        //     if (p._data && p._count && *p._count>0){
+        //         _data = p._data;
+        //         _count = p._count;
+        //     }
+        //     else{
+        //         _data = 0;
+        //         _count = 0;
+        //     }
+        //     return *this;
+        // }
+        WeakPointer& operator=(void*) {
+            _data = 0;
+            _count = 0;
+            return *this;
         }
     };
 }
-
-// #include <cstdlib>
-// void* operator new (unsigned long n){
-//     void* const p = malloc(n);
-//     return p;
-// }
-// void operator delete(void* p){
-//     if (!p)
-//         free(p);
-// }
 
 
 #endif //CPP_MEMORY_H

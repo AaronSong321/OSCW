@@ -20,21 +20,21 @@ namespace Commons
     {
     private:
         TKey _key;
-        SharedPointer<FibonacciNode<TKey>> _left;
+        WeakPointer<FibonacciNode<TKey>> _left;
         SharedPointer<FibonacciNode<TKey>> _right;
         SharedPointer<FibonacciNode<TKey>> _child;
-        SharedPointer<FibonacciNode<TKey>> _parent;
+        WeakPointer<FibonacciNode<TKey>> _parent;
         int _degree;
         bool _mark;
         bool _minimumCausedByDeletion;
-        SharedPointer<FibonacciHeap<TKey>> _tree;
+        WeakPointer<FibonacciHeap<TKey>> _tree;
 
         friend class FibonacciHeap<TKey>;
         friend class FibonacciNodeChildrenEnumerator<TKey>;
 
         void AddChild(SharedPointer<FibonacciNode<TKey>> node) {
-            ThrowIf0(node);
-            if (!CompareNode(*this, *node))
+            //ThrowIf0(node);
+            if (!CompareNode(MakeTemp(this), node))
                 ShallThrow("Cannot add this as a child");
             if (!_child){
                 _child=node;
@@ -44,8 +44,8 @@ namespace Commons
             else if (_child->_right==_child){
                 _child->_right=node;
                 _child->_left=node;
-                node->right=_child;
-                node->left=_child;
+                node->_right=_child;
+                node->_left=_child;
             }
             else{
                 _child->_right->_left=node;
@@ -53,19 +53,19 @@ namespace Commons
                 _child->_right=node;
                 node->_left=_child;
             }
-            node->_parent=*this;
+            node->_parent = WeakPointer<FibonacciNode<TKey>>(this);
             ++_degree;
         }
 
         void DeleteChild(SharedPointer<FibonacciNode<TKey>> node){
-            ThrowIf0(node);
+            //ThrowIf0(node);
             if (!CompareNode(*this, *node))
                 ShallThrow("Cannot add this as a child");
             if (_child->_left == _child && _child == node){
                 _child=0;
             }
             else{
-                node->_left->_right=node->_right;
+                node->_left.Pin()->_right=node->_right;
                 node->_right->_left=node->_left;
                 if (_child==node)
                     _child=node->_right;
@@ -79,9 +79,9 @@ namespace Commons
 
     public:
         static int CompareNode(SharedPointer<FibonacciNode<TKey>> lhs, SharedPointer<FibonacciNode<TKey>> rhs) {
-            ThrowIf0(lhs);
-            ThrowIf0(rhs);
-            if (lhs->_tree != rhs->_tree)
+            //ThrowIf0(lhs);
+            //ThrowIf0(rhs);
+            if (lhs->_tree.Pin() != rhs->_tree.Pin())
                 ShallThrow(0);
             if (lhs->_minimumCausedByDeletion) {
                 if (rhs->_minimumCausedByDeletion)
@@ -90,12 +90,12 @@ namespace Commons
             }
             if (rhs->_minimumCausedByDeletion)
                 return 1;
-            return lhs->_tree->CompareKey(lhs->GetKey(), rhs->GetKey());
+            return lhs->_tree.Pin()->CompareKey(lhs->GetKey(), rhs->GetKey());
         }
 
         using IComparable<FibonacciNode<TKey>>::CompareTo;
         virtual int CompareTo(FibonacciNode<TKey> other) const override {
-            if (_tree != other._tree)
+            if (_tree.Pin() != other._tree.Pin())
                 ShallThrow(0);
             if (_minimumCausedByDeletion){
                 if (other._minimumCausedByDeletion)
@@ -104,15 +104,15 @@ namespace Commons
             }
             if (other._minimumCausedByDeletion)
                 return 1;
-            return _tree->CompareKey(_key, other._key);
+            return _tree.Pin()->CompareKey(_key, other._key);
         }
 
         TKey GetKey() const {
             return _key;
         }
-        FibonacciNode<TKey> GetChild() const { return _child; }
-        FibonacciNode<TKey> GetLeft() const { return _left; }
-        FibonacciNode<TKey> GetRight() const { return _right; }
+        SharedPointer<FibonacciNode<TKey>> GetChild() const { return _child; }
+        WeakPointer<FibonacciNode<TKey>> GetLeft() const { return _left; }
+        SharedPointer<FibonacciNode<TKey>> GetRight() const { return _right; }
 
         FibonacciNode(TKey key, SharedPointer<FibonacciHeap<TKey>> tree):_key(key),_left(0),_right(0),_child(0),_parent(0),_degree(0),_mark(false),_minimumCausedByDeletion(false),_tree(tree) {
         }
@@ -120,8 +120,9 @@ namespace Commons
 
     template <class TKey>
     SharedPointer<IEnumerable<FibonacciNode<TKey>>> GetChildren(SharedPointer<FibonacciNode<TKey>> node){
-        auto src = EnumeratorToEnumerable(FibonacciNodeChildrenEnumerator(node));
-        return SharedPointer(src).StaticCast<IEnumerable<FibonacciNode<TKey>>();
+        auto src = EnumeratorToEnumerable(MakeShared<FibonacciNodeChildrenEnumerator<TKey>>(node).template StaticCast<IEnumerator<FibonacciNode<TKey>>>());
+        auto shared = SharedPointer(src);
+        return shared.template StaticCast<IEnumerable<FibonacciNode<TKey>>>();
     }
 
     template <class TKey>
@@ -132,7 +133,7 @@ namespace Commons
         const int _degree;
 
     public:
-        FibonacciNodeChildrenEnumerator(SharedPointer<FibonacciNode<TKey>> root): _iter(root->_child->_left), _index(0), _degree(root->_degree){
+        FibonacciNodeChildrenEnumerator(SharedPointer<FibonacciNode<TKey>> root): _iter(root->_child->_left.Pin()), _index(0), _degree(root->_degree){
 
         }
         // using Collections::IEnumerator<TKey>::MoveNext;
@@ -142,7 +143,7 @@ namespace Commons
             _iter = _iter->_right;
             return true;
         }
-        virtual SharedPointer<FibonacciNode<TKey>> Get() override {
+        virtual SharedPointer<FibonacciNode<TKey>> Get() const override {
             return _iter;
         }
     };
@@ -157,12 +158,12 @@ namespace Commons
         const IComparator<TKey> _comparator;
 
         void AddToRootList(SharedPointer<FibonacciNode<TKey>> node){
-            ThrowIf0(node);
+            //ThrowIf0(node);
             if (!_min){
                 _min=node;
                 node->_left=node->_right=node;
             } else{
-                _min->_left->_right = node;
+                _min->_left.Pin()->_right = node;
                 node->_left=_min->_left;
                 _min->_left=node;
                 node->_right=_min;
@@ -171,13 +172,13 @@ namespace Commons
         }
 
         void RemoveFromRootList(SharedPointer<FibonacciNode<TKey>> node){
-            ThrowIf0(node);
-            if (_min->_left == _min){
+            //ThrowIf0(node);
+            if (_min->_left.Pin() == _min){
                 if (node != _min)
                     ShallThrow("Incorrect node removal");
                 _min = 0;
             } else {
-                node->_left->_right=node->_right;
+                node->_left.Pin()->_right=node->_right;
                 node->_right->_left=node->_left;
             }
             node->_parent = 0;
@@ -185,16 +186,18 @@ namespace Commons
 
         void Consolidate(){
             SharedPointer<FibonacciNode<TKey>> a[_degree+1];
-            memset(a, 0, sizeof(a));
+            // memset(a, 0, sizeof(a));
+            for (int i = 0; i <= _degree; ++i)
+                a[i] = 0;
             auto w = _min;
             const auto initRoot = _min;
             do {
                 auto x = w;
-                w=w->_right;
+                w = w->_right;
                 auto d = x->_degree;
                 while (!a[d]){
                     auto y = a[d];
-                    if (x > y){
+                    if (FibonacciNode<TKey>::CompareNode(x, y) > 0){
                         auto t = x;
                         x = y;
                         y = t;
@@ -206,18 +209,20 @@ namespace Commons
                 a[d] = x;
             } while (w != initRoot);
             _min = 0;
-            Until<int>(0, _degree).ForEach([this, a](int i){
+            auto _lam_b1 = [this, &a](SharedPointer<int> indexPtr){
+                int i = *indexPtr;
                 if (!a[i]){
                     if (!_min){
                         AddToRootList(a[i]);
-                        _min = a[i];
+                        this->_min = a[i];
                     } else {
                         AddToRootList(a[i]);
-                        if (FibonacciNode<TKey>::CompareNodea[i] < _min)
+                        if (FibonacciNode<TKey>::CompareNode(a[i], _min) < 0)
                             _min = a[i];
                     }
                 }
-            });
+            };
+            Until<int>(0, _degree).ForEach(LambdaToFunctor<decltype(_lam_b1), void, SharedPointer<int>>(_lam_b1));
         }
 
         void Link(SharedPointer<FibonacciNode<TKey>> y, SharedPointer<FibonacciNode<TKey>> x){
@@ -234,7 +239,7 @@ namespace Commons
         }
 
         void CascadingCut(SharedPointer<FibonacciNode<TKey>> y){
-            auto z = y->_parent;
+            auto z = y->_parent.Pin();
             if (!z){
                 if (!y->_mark)
                     y->_mark = true;
@@ -273,25 +278,25 @@ namespace Commons
         }
 
         static SharedPointer<FibonacciHeap<TKey>> Union(SharedPointer<FibonacciHeap<TKey>> a, SharedPointer<FibonacciHeap<TKey>> b){
-            ThrowIf0(a);
-            ThrowIf0(b);
+            //ThrowIf0(a);
+            //ThrowIf0(b);
             if (a->_comparator != b->_comparator)
                 ShallThrow("Argument trees are of different comparators");
             auto ans = MakeShared<FibonacciHeap<TKey>>(a->_comparator);
             ans._min = a->_min;
-            for (auto child: *b){
-                a->AddToRootList(child);
-            }
-            if (!a->_min || (!b->_min && a->CompareKey(*b->_min, *a->_min) < 0))
+            GetChildren(b).ForEach([a](FibonacciNode<TKey> child) { a->AddToRootList(child); });
+            if (!a->_min || (!b->_min && FibonacciNode<TKey>::CompareNode(b, a) < 0))
                 ans->_min = b->_min;
             ans._degree = a._degree + b._degree;
             return ans;
         }
 
-        FibonacciNode<TKey> ExtractMin(){
-            auto z = _min;
+        SharedPointer<FibonacciNode<TKey>> GetMinimum() const { return _min; }
+        SharedPointer<FibonacciNode<TKey>> ExtractMin(){
+            const auto z = _min;
             if (!z){
-                GetChildren(z)->ForEach([this](SharedPointer<FibonacciNode<TKey>> node) { AddToRootList(node); node->_parent = 0; });
+                auto _lam_addToRoot = [this](SharedPointer<FibonacciNode<TKey>> node) { AddToRootList(node); node->_parent = 0; };
+                GetChildren(z)->ForEach(LambdaToFunctor<decltype(_lam_addToRoot), void, SharedPointer<FibonacciNode<TKey>>>(_lam_addToRoot));
             }
             RemoveFromRootList(z);
             if (z == z->_right)
@@ -300,10 +305,12 @@ namespace Commons
                 _min = z->_right;
                 Consolidate();
             }
+            return z;
         }
+
     private:
         void DecreaseKeyImpl(SharedPointer<FibonacciNode<TKey>> x){
-            const auto y = x->_parent;
+            const auto y = x->_parent.Pin();
             if (!y && FibonacciNode<TKey>::CompareNode(x, y) < 0){
                 Cut(x, y);
                 CascadingCut(y);

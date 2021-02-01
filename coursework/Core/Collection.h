@@ -16,10 +16,14 @@ namespace Commons::Collections{
         typedef SharedPointer<T> EnumeratorType;
         virtual EnumeratorType Get() const = 0;
         virtual bool MoveNext() = 0;
+        virtual ~IEnumerator(){}
+
         template <class... ArgTypes>
         static EnumeratorType MakeEnumerator(ArgTypes&&... args){
             return MakeShared<T>(Forward<ArgTypes>(args)...);
         }
+        SharedPointer<T> operator->() const { return Get(); }
+        T& operator*() const { return *Get(); }
     };
 
     #if ENABLECONCEPT
@@ -58,24 +62,21 @@ namespace Commons::Collections{
 
     namespace _impl{
         template <class T>
-        class AnonymousEnumerable: IEnumerable<T>{
+        class AnonymousEnumerable: public IEnumerable<T>{
         private:
-            const IEnumerator<T> _source;
+            const SharedPointer<IEnumerator<T>> _source;
         public:
-            AnonymousEnumerable(IEnumerator<T> source): _source(source){}
-            virtual IEnumerator<T> GetEnumerator() override {
+            AnonymousEnumerable(SharedPointer<IEnumerator<T>> source): _source(source){}
+            virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
                 return _source;
             }
         };
     }
 
     template <class T>
-    IEnumerable<T> EnumeratorToEnumerable(const IEnumerator<T>& enumerator){
-        return _impl::AnonymousEnumerable(enumerator);
-    }
-    template <class T>
-    IEnumerable<T> EnumeratorToEnumerable(IEnumerator<T>&& enumerator){
-        return _impl::AnonymousEnumerable(enumerator);
+    SharedPointer<IEnumerable<T>> EnumeratorToEnumerable(SharedPointer<IEnumerator<T>> enumerator){
+        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
+        return t;
     }
 
     namespace _impl{
@@ -93,21 +94,31 @@ namespace Commons::Collections{
 
     public:
         virtual SharedPointer<IEnumerator<T>> GetEnumerator() const = 0;
+        virtual ~IEnumerable() { }
 
-        void ForEach(Function(void, T) action){
+        void ForEach(SharedPointer<Functor<void(SharedPointer<T>)>> func){
             auto iterator = GetEnumerator();
-            while (iterator.MoveNext()){
-                action(*iterator);
+            while (iterator->MoveNext()){
+                func->Invoke(iterator->Get());
             }
         }
-        template <class U>
-        SharedPointer<IEnumerable<U>> Transform(Function(U, T) trans){
-            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
-            return SharedPointer(ptr).StaticCast();
+        void ModifyEach(SharedPointer<Functor<void(SharedPointer<T>)>> func){
+            auto iterator = GetEnumerator();
+            while (iterator->MoveNext()){
+                func->Invoke(iterator->Get());
+            }
         }
-        SharedPointer<IEnumerable<T>> Filter(Function(bool, T) filter){
+
+        template <class U>
+        SharedPointer<IEnumerable<U>> Map(U (*trans)(const T&)){
+            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            auto next = SharedPointer(ptr);
+            return next.template StaticCast<IEnumerable<U>>();
+        }
+        SharedPointer<IEnumerable<T>> Filter(FunctionVariable(bool, filter, const T&)){
             auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
-            return SharedPointer(ptr).StaticCast();
+            auto next = SharedPointer(ptr);
+            return next.template StaticCast<IEnumerable<T>>();
         }
     };
 

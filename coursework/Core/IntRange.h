@@ -59,7 +59,8 @@ namespace Commons{
 
         virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
             auto e = new ::Commons::_impl::Range_Enumerator(*this);
-            return SharedPointer(e).StaticCast();
+            auto ptr = SharedPointer(e);
+            return ptr.template StaticCast<IEnumerator<T>>();
         }
 
     };

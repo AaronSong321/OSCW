@@ -7,6 +7,8 @@
             "args": [
                 "-g",
                 "${file}",
+                "-nostdlib",
+                "-std=c++2a",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],
