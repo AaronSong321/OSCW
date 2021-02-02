@@ -16,7 +16,7 @@ namespace Commons::Collections{
         typedef SharedPointer<T> EnumeratorType;
         virtual EnumeratorType Get() const = 0;
         virtual bool MoveNext() = 0;
-        virtual ~IEnumerator(){}
+        virtual ~IEnumerator() {}
 
         template <class... ArgTypes>
         static EnumeratorType MakeEnumerator(ArgTypes&&... args){
@@ -37,6 +37,8 @@ namespace Commons::Collections{
         typedef T EnumeratorType;
         virtual EnumeratorType Get() const = 0;
         virtual bool MoveNext() = 0;
+        virtual ~IEnumerator() {}
+
         template <class... ArgTypes>
         static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
             return T(Forward<ArgTypes>(args)...);
@@ -82,7 +84,7 @@ namespace Commons::Collections{
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
         auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
     }
-    
+
     namespace _impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;

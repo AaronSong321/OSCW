@@ -32,6 +32,8 @@ namespace Commons{
 
     template <class T>
     using IEqualityComparator = Functor<bool(const T&, const T&)>;
+    template <class T>
+    using IValueEqualityComparator = Functor<bool(const T, const T)>;
 
     template <class T>
     SharedPointer<IComparator<T>> GetDefaultComparator()
@@ -51,12 +53,19 @@ namespace Commons{
         template <class T>
         static bool _Equals(const T& lhs, const T& rhs) {
             return lhs == rhs;
+        }        
+        template <class T>
+        static bool _ValueEquals(const T lhs, const T rhs){
+            return lhs == rhs;
         }
     }
     template <class T>
     SharedPointer<IEqualityComparator<T>> GetDefaultEqualityComparator(){
         return MakeShared<Fun<bool, const T&, const T&>>(&__impl::_Equals<T>).template StaticCast<IEqualityComparator<T>>();
     }
-
+    template <class T>
+    SharedPointer<IValueEqualityComparator<T>> GetDefaultValueEqualityComparator(){
+        return MakeShared<Fun<bool, const T, const T>>(&__impl::_ValueEquals<T>).template StaticCast<IValueEqualityComparator<T>>();
+    }
 }
 #endif //CPP_COMPARATOR_H
