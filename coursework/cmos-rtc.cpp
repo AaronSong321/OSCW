@@ -12,7 +12,6 @@
 
 using namespace infos::drivers;
 using namespace infos::drivers::timer;
-
 #define P(...) infos::kernel::syslog.messagef(infos::kernel::LogLevel::INFO, __VA_ARGS__)
 
 
@@ -72,7 +71,10 @@ public:
 
 using namespace infos::arch::x86;
 bool CMOSRTC::IsUpdateInProgress(){
+	using namespace infos::kernel;
 	__outb(CmosAddress, 0x0A);
+	// int value = __inb(CmosAddress);
+	// syslog.messagef(LogLevel::INFO, "update bit: %d %d", value, value&0x80);
 	return (__inb(CmosAddress) & 0x80) != 0;
 }
 unsigned short CMOSRTC::GetOriginal(Port port){
@@ -80,6 +82,7 @@ unsigned short CMOSRTC::GetOriginal(Port port){
 	return __inb(CmosData);
 }
 void CMOSRTC::ReadRegisterB(){
+	// while (IsUpdateInProgress());
 	registerB = GetOriginal(Port::BCD);
 }
 bool CMOSRTC::IsBinaryCodedDecimal(){

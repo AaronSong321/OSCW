@@ -17,8 +17,7 @@ export out-dir	    := $(top-dir)/out
 
 -include $(build-dir)/Makefile.include
 
-export common-flags := -I$(inc-dir) -nostdinc -nostdlib -g -Wall -O3 -std=gnu++2a -fno-pic
-# export common-flags += -fconcepts 
+export common-flags := -I$(inc-dir) -nostdinc -nostdlib -g -Wall -O3 -std=gnu++17 -fno-pic
 export common-flags += -mcmodel=kernel
 export common-flags += -ffreestanding -fno-builtin -fno-omit-frame-pointer -fno-rtti -fno-exceptions -fno-stack-protector
 export common-flags += -fno-delete-null-pointer-checks -mno-red-zone
