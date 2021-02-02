@@ -10,3 +10,4 @@ oot
 oot/
 .vscode/
 *.DS_Store
+.idea/
