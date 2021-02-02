@@ -17,7 +17,7 @@ namespace Commons{
     #endif
     struct Range;
 
-    namespace _impl{
+    namespace __impl{
         #if ENABLECONCEPT
         template <Integral T>
         #else
@@ -58,7 +58,7 @@ namespace Commons{
         T GetEnd() const { return _end; }
 
         virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
-            auto e = new ::Commons::_impl::Range_Enumerator(*this);
+            auto e = new ::Commons::__impl::Range_Enumerator(*this);
             auto ptr = SharedPointer(e);
             return ptr.template StaticCast<IEnumerator<T>>();
         }

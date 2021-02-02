@@ -252,7 +252,7 @@ namespace Commons{
     struct SharedPointer{
     private:
         T* _data;
-        int* _count;
+        mutable int* _count;
         SharedPointer(T* rawPointer, int* counterPointer): _data(rawPointer), _count(counterPointer){
             ++*_count;
         }
@@ -260,14 +260,14 @@ namespace Commons{
         friend struct WeakPointer;
         template <class U>
         friend struct SharedPointer;
-        template <class U>
-        friend SharedPointer<U> MakeTemp(U*);
 
     private:
-        void Hold(){
+        void Hold() const {
             ++*_count;
         }
-        void Release() noexcept{
+        void Release() const noexcept{
+            if (!_count)
+                return;
             if (!--*_count){
                 delete _data;
                 delete _count;
@@ -290,7 +290,7 @@ namespace Commons{
         SharedPointer(decltype(nullptr)): _data(0), _count(0){
         }
 
-        SharedPointer<T>& operator=(SharedPointer<T>& other){
+        SharedPointer<T>& operator=(const SharedPointer<T>& other){
             other.Hold();
             Release();
             _data = other._data;
@@ -303,7 +303,7 @@ namespace Commons{
             _count = 0;
             return *this;
         }
-        SharedPointer<T>& operator=(SharedPointer<T>&& other){
+        SharedPointer<T>& operator=(SharedPointer<T>&& other) noexcept {
             other.Hold();
             Release();
             _data = other._data;
@@ -311,8 +311,11 @@ namespace Commons{
             return *this;
         }
 
-        bool operator==(const SharedPointer<T>& other) const{
+        bool operator==(const SharedPointer<T> other) const {
             return _data == other._data;
+        }
+        bool operator!=(const SharedPointer<T> other) const {
+            return !(_data == other._data);
         }
 
         ~SharedPointer(){
@@ -345,18 +348,10 @@ namespace Commons{
         SharedPointer<TBase> StaticCast();
         template <class TDerived>
         SharedPointer<TDerived> DynamicCast();
-
-        // template <class TRemoveCV>
-        // SharedPointer<TRemoveCV> ConstCast() {
-        //     auto data = const_cast<TRemoveCV*>(_data);
-        //     return ConstructPointerAtType(data);
-        // }
-
-        // template <class TFP>
-        // SharedPointer<TFP> ReinterpretCast(){
-        //     auto data = reinterpret_cast<TFP*>(_data);
-        //     return ConstructPointerAtType(data);
-        // }
+        template <class TBase>
+        SharedPointer<TBase> ConstCast();
+        template <class TDerived>
+        SharedPointer<TDerived> ReinterpretCast();
     };
 
     template <class T>
@@ -371,28 +366,23 @@ namespace Commons{
         auto data = dynamic_cast<TBase*>(_data);
         return ConstructPointerAtType(data);
     }
-    // template <class T>
-    // template <class TBase>
-    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
-    //     auto data = static_cast<TBase*>(_data);
-    //     return ConstructPointerAtType(data);
-    // }
-    // template <class T>
-    // template <class TBase>
-    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
-    //     auto data = static_cast<TBase*>(_data);
-    //     return ConstructPointerAtType(data);
-    // }
+     template <class T>
+     template <class TBase>
+     SharedPointer<TBase> SharedPointer<T>::ConstCast() {
+         auto data = const_cast<TBase*>(_data);
+         return ConstructPointerAtType(data);
+     }
+     template <class T>
+     template <class TBase>
+     SharedPointer<TBase> SharedPointer<T>::ReinterpretCast() {
+         auto data = reinterpret_cast<TBase*>(_data);
+         return ConstructPointerAtType(data);
+     }
 
     template<class T, class... ArgTypes>
     inline SharedPointer<T> MakeShared(ArgTypes&&... objects){
         auto p = new T(Forward<ArgTypes>(objects)...);
         return SharedPointer<T>(p);
-    }
-
-    template <class T>
-    inline SharedPointer<T> MakeTemp(T* rawPointer){
-        return SharedPointer(rawPointer, new int(100));
     }
 
     template<class T, class U>
@@ -632,7 +622,7 @@ namespace Commons::Collections{
     template <class T>
     class IEnumerable;
 
-    namespace _impl{
+    namespace __impl{
         template <class T>
         class AnonymousEnumerable: public IEnumerable<T>{
         private:
@@ -647,15 +637,15 @@ namespace Commons::Collections{
 
     template <class T>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable(SharedPointer<IEnumerator<T>> enumerator){
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
         return t;
     }
     template <class T, class ActualEnumeratorType>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
     }
-    
-    namespace _impl{
+
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;
         template <class T>
@@ -687,18 +677,18 @@ namespace Commons::Collections{
 
         template <class U>
         SharedPointer<IEnumerable<U>> Map(U (*trans)(const T&)){
-            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            auto ptr = new __impl::_IEnumerable_Transform_IEnumerator(*this, trans);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<U>>();
         }
         SharedPointer<IEnumerable<T>> Filter(FunctionVariable(bool, filter, const T&)){
-            auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
+            auto ptr = new __impl::_IEnumerable_Filter_IEnumerator(*this, filter);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<T>>();
         }
     };
 
-    namespace _impl{
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator: public IEnumerator<U>{
         private:
@@ -768,7 +758,7 @@ namespace Commons{
     #endif
     struct Range;
 
-    namespace _impl{
+    namespace __impl{
         #if ENABLECONCEPT
         template <Integral T>
         #else
@@ -809,7 +799,7 @@ namespace Commons{
         T GetEnd() const { return _end; }
 
         virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
-            auto e = new ::Commons::_impl::Range_Enumerator(*this);
+            auto e = new ::Commons::__impl::Range_Enumerator(*this);
             auto ptr = SharedPointer(e);
             return ptr.template StaticCast<IEnumerator<T>>();
         }
@@ -898,9 +888,9 @@ namespace Commons::Collections {
             ++_count;
         }
 
-        void Remove(SharedPointer<ListNode<T>> node) {
+        void RemoveNode(SharedPointer<ListNode<T>> node) {
             node->_next->_prev = node->_prev.Pin();
-            node->_prev.Pin()->_prev = node->_next;
+            node->_prev.Pin()->_next = node->_next;
             if (node == _root) {
                 _root = _root->_next;
                 if (_count == 1) {
@@ -938,8 +928,8 @@ namespace Commons::Collections {
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
+                _root = newNode;
             }
-            _root = newNode;
             return newNode;
         }
 
@@ -969,7 +959,7 @@ namespace Commons::Collections {
         void Remove(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) {
             if (!equalityComparator || !_root)
                 return;
-            const auto end = _root->_next;
+            const auto end = _root;
             auto node = _root;
             SharedPointer<ListNode<T>> deleteList[_count];
             int deleteIndex = 0;
@@ -980,8 +970,8 @@ namespace Commons::Collections {
                 node = node->_next;
             } while (node != end);
             deleteIndex = 0;
-            while (deleteList[deleteIndex++]) {
-                Remove(node);
+            while (deleteList[deleteIndex]) {
+                RemoveNode(deleteList[deleteIndex++]);
             }
         }
 

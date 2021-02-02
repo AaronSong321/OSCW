@@ -11,3 +11,7 @@ oot/
 .vscode/
 *.DS_Store
 .idea/
+coursework/Core/Test.h
+coursework/Core/src/
+coursework/Core/CMakeLists.txt
+coursework/Core/cmake-build-debug

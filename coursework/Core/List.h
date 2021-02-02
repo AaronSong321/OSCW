@@ -1,5 +1,6 @@
 
 #include "Collection.h"
+#include "Comparator.h"
 
 namespace Commons::Collections {
     template <class T>
@@ -65,9 +66,9 @@ namespace Commons::Collections {
             ++_count;
         }
 
-        void Remove(SharedPointer<ListNode<T>> node) {
+        void RemoveNode(SharedPointer<ListNode<T>> node) {
             node->_next->_prev = node->_prev.Pin();
-            node->_prev.Pin()->_prev = node->_next;
+            node->_prev.Pin()->_next = node->_next;
             if (node == _root) {
                 _root = _root->_next;
                 if (_count == 1) {
@@ -105,8 +106,8 @@ namespace Commons::Collections {
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
+                _root = newNode;
             }
-            _root = newNode;
             return newNode;
         }
 
@@ -136,7 +137,7 @@ namespace Commons::Collections {
         void Remove(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) {
             if (!equalityComparator || !_root)
                 return;
-            const auto end = _root->_next;
+            const auto end = _root;
             auto node = _root;
             SharedPointer<ListNode<T>> deleteList[_count];
             int deleteIndex = 0;
@@ -147,8 +148,8 @@ namespace Commons::Collections {
                 node = node->_next;
             } while (node != end);
             deleteIndex = 0;
-            while (deleteList[deleteIndex++]) {
-                Remove(node);
+            while (deleteList[deleteIndex]) {
+                RemoveNode(deleteList[deleteIndex++]);
             }
         }
 

@@ -62,7 +62,7 @@ namespace Commons::Collections{
     template <class T>
     class IEnumerable;
 
-    namespace _impl{
+    namespace __impl{
         template <class T>
         class AnonymousEnumerable: public IEnumerable<T>{
         private:
@@ -77,15 +77,15 @@ namespace Commons::Collections{
 
     template <class T>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable(SharedPointer<IEnumerator<T>> enumerator){
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
         return t;
     }
     template <class T, class ActualEnumeratorType>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
     }
 
-    namespace _impl{
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;
         template <class T>
@@ -117,18 +117,18 @@ namespace Commons::Collections{
 
         template <class U>
         SharedPointer<IEnumerable<U>> Map(U (*trans)(const T&)){
-            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            auto ptr = new __impl::_IEnumerable_Transform_IEnumerator(*this, trans);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<U>>();
         }
         SharedPointer<IEnumerable<T>> Filter(FunctionVariable(bool, filter, const T&)){
-            auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
+            auto ptr = new __impl::_IEnumerable_Filter_IEnumerator(*this, filter);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<T>>();
         }
     };
 
-    namespace _impl{
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator: public IEnumerator<U>{
         private:
