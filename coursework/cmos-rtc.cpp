@@ -15,6 +15,7 @@ using namespace infos::drivers::timer;
 #define P(...) infos::kernel::syslog.messagef(infos::kernel::LogLevel::INFO, __VA_ARGS__)
 
 
+#include <arch/x86/x86-arch.h>
 
 class CMOSRTC : public RTC {
 private:
@@ -59,6 +60,7 @@ public:
 	 */
 	void read_timepoint(RTCTimePoint& tp) override
 	{
+		infos::arch::x86::x86arch.disable_interrupts();
 		ReadRegisterB();
 		tp.seconds = GetRtcValue(Port::Second);
 		tp.minutes = GetRtcValue(Port::Minute);
@@ -66,6 +68,7 @@ public:
 		tp.day_of_month = GetRtcValue(Port::Day);
 		tp.month = GetRtcValue(Port::Month);
 		tp.year = GetRtcYearValue();
+		infos::arch::x86::x86arch.enable_interrupts();
 	}
 };
 

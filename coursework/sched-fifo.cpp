@@ -477,7 +477,7 @@ namespace Commons{
         operator Function(RetType, ArgTypes...)(){
             return _fpointer;
         }
-        virtual RetType Invoke(ArgTypes&&... args) const override {
+        virtual RetType Invoke(ArgTypes... args) const override {
             return _fpointer(Forward<ArgTypes>(args)...);
         }
 
@@ -542,6 +542,8 @@ namespace Commons{
 
     template <class T>
     using IEqualityComparator = Functor<bool(const T&, const T&)>;
+    template <class T>
+    using IValueEqualityComparator = Functor<bool(const T, const T)>;
 
     template <class T>
     SharedPointer<IComparator<T>> GetDefaultComparator()
@@ -562,12 +564,199 @@ namespace Commons{
         static bool _Equals(const T& lhs, const T& rhs) {
             return lhs == rhs;
         }
+        template <class T>
+        static bool _ValueEquals(const T lhs, const T rhs){
+            return lhs == rhs;
+        }
     }
     template <class T>
     SharedPointer<IEqualityComparator<T>> GetDefaultEqualityComparator(){
         return MakeShared<Fun<bool, const T&, const T&>>(&__impl::_Equals<T>).template StaticCast<IEqualityComparator<T>>();
     }
+    template <class T>
+    SharedPointer<IValueEqualityComparator<T>> GetDefaultValueEqualityComparator(){
+        return MakeShared<Fun<bool, const T, const T>>(&__impl::_ValueEquals<T>).template StaticCast<IValueEqualityComparator<T>>();
+    }
 
+}
+namespace Commons::Collections{
+    template <class T>
+    class IEnumerator{
+    public:
+        typedef SharedPointer<T> EnumeratorType;
+        virtual EnumeratorType Get() const = 0;
+        virtual bool MoveNext() = 0;
+        virtual ~IEnumerator() {}
+
+        template <class... ArgTypes>
+        static EnumeratorType MakeEnumerator(ArgTypes&&... args){
+            return MakeShared<T>(Forward<ArgTypes>(args)...);
+        }
+        SharedPointer<T> operator->() const { return Get(); }
+        T& operator*() const { return *Get(); }
+    };
+
+    #if ENABLECONCEPT
+    /**
+     * If define this, every template IEnumerable generator needs to provide a version for ValueType
+     * @tparam T
+     */
+    template <ValueType T>
+    class IEnumerator<T>{
+    public:
+        typedef T EnumeratorType;
+        virtual EnumeratorType Get() const = 0;
+        virtual bool MoveNext() = 0;
+        virtual ~IEnumerator() {}
+        
+        template <class... ArgTypes>
+        static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
+            return T(Forward<ArgTypes>(args)...);
+        }
+    };
+    #define IValueEnumerator IEnumerator
+    // #else
+    // template <class T>
+    // class IValueEnumerator{
+    // public:
+    //     typedef T EnumeratorType;
+    //     virtual EnumeratorType Get() const = 0;
+    //     virtual bool MoveNext() = 0;
+    //     template <class... ArgTypes>
+    //     static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
+    //         return T(Forward<ArgTypes>(args)...);
+    //     }
+    // };
+    #endif
+
+    template <class T>
+    class IEnumerable;
+
+    namespace _impl{
+        template <class T>
+        class AnonymousEnumerable: public IEnumerable<T>{
+        private:
+            const SharedPointer<IEnumerator<T>> _source;
+        public:
+            AnonymousEnumerable(SharedPointer<IEnumerator<T>> source): _source(source){}
+            virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+                return _source;
+            }
+        };
+    }
+
+    template <class T>
+    SharedPointer<IEnumerable<T>> EnumeratorToEnumerable(SharedPointer<IEnumerator<T>> enumerator){
+        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
+        return t;
+    }
+    template <class T, class ActualEnumeratorType>
+    SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
+        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
+    }
+    
+    namespace _impl{
+        template <class T, class U>
+        class _IEnumerable_Transform_IEnumerator;
+        template <class T>
+        class _IEnumerable_Filter_IEnumerator;
+//        template <class T>
+//        class
+    }
+
+    template <class T>
+    class IEnumerable{
+    private:
+
+    public:
+        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const = 0;
+        virtual ~IEnumerable() { }
+
+        void ForEach(SharedPointer<Functor<void(SharedPointer<T>)>> func){
+            auto iterator = GetEnumerator();
+            while (iterator->MoveNext()){
+                func->Invoke(iterator->Get());
+            }
+        }
+        void ModifyEach(SharedPointer<Functor<void(SharedPointer<T>)>> func){
+            auto iterator = GetEnumerator();
+            while (iterator->MoveNext()){
+                func->Invoke(iterator->Get());
+            }
+        }
+
+        template <class U>
+        SharedPointer<IEnumerable<U>> Map(U (*trans)(const T&)){
+            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            auto next = SharedPointer(ptr);
+            return next.template StaticCast<IEnumerable<U>>();
+        }
+        SharedPointer<IEnumerable<T>> Filter(FunctionVariable(bool, filter, const T&)){
+            auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
+            auto next = SharedPointer(ptr);
+            return next.template StaticCast<IEnumerable<T>>();
+        }
+    };
+
+    namespace _impl{
+        template <class T, class U>
+        class _IEnumerable_Transform_IEnumerator: public IEnumerator<U>{
+        private:
+            IEnumerator<T> _source;
+            Function(U, T) _trans;
+        public:
+            _IEnumerable_Transform_IEnumerator(IEnumerable<T> source, Function(U, T) trans): _source(source.GetEnumerator()), _trans(trans){
+            }
+
+            virtual typename IEnumerator<U>::EnumeratorType Get() const override {
+                return MakeEnumerator(trans(*_source));
+            }
+            virtual bool MoveNext() override {
+                return _source.MoveNext();
+            }
+        };
+        
+        template <class T>
+        class _IEnumerable_Filter_IEnumerator: public IEnumerator<T>{
+        private:
+            IEnumerator<T> _source;
+            Function(bool, T) _filter;
+        public:
+            _IEnumerable_Filter_IEnumerator(IEnumerable<T> source, Function(bool, T) filter): _source(source.GetEnumerator()), _filter(filter){}
+            
+            virtual bool MoveNext() override {
+                while (_source.MoveNext()) {
+                    if (_filter(_source.Get()))
+                        return true;
+                }
+                return false;
+            }
+            virtual SharedPointer<T> Get() override
+            {
+                return _source.Get();
+            }
+        };
+    }
+
+    template <class T>
+    class IInputCollection{
+    public:
+        virtual int GetCount() const = 0;
+        virtual void Add(T elem) = 0;
+        virtual void Clear() = 0;
+        virtual ~IInputCollection() { }
+    };
+
+    template <class T>
+    class IOutputCollection: virtual public IEnumerable<T>{
+    public:
+        // using IEnumerable<T>::GetEnumerator;
+        virtual bool Contains(T elem) const = 0;
+        virtual void Remove(T elem) = 0;
+    };
+
+    template <class T>
+    class ICollection: public IInputCollection<T>, public IOutputCollection<T> {};
 }
 
 namespace Commons{
@@ -652,15 +841,15 @@ namespace Commons::Collections {
     template <class T>
     class ListNode {
     private:
-        SharedPointer<T> _data;
+        T _data;
         SharedPointer<ListNode<T>> _next;
         WeakPointer<ListNode<T>> _prev;
         friend class List<T>;
 
     public:
-        SharedPointer<T> Data() const { return _data; }
+        T Data() const { return _data; }
         SharedPointer<ListNode<T>> Next() const { return _next; }
-        ListNode(T data): _data(MakeShared<T>(data)), _next(nullptr), _prev(nullptr) {
+        ListNode(T data): _data(data), _next(nullptr), _prev(nullptr) {
         }
     };
 
@@ -671,7 +860,7 @@ namespace Commons::Collections {
             const SharedPointer<ListNode<T>> _root;
             bool _startState;
         public:
-            ListIterator(const List<T>* list): _root(list->Root()), _cur(list->Root()), _startState(true) {
+            ListIterator(const List<T>* list): _cur(list->Root()), _root(list->Root()), _startState(true) {
             }
             virtual bool MoveNext() override {
                 if (!_cur)
@@ -684,7 +873,7 @@ namespace Commons::Collections {
                 return _cur != _root;
             }
             virtual SharedPointer<T> Get() const override {
-                return _cur->Data();
+                return MakeShared<T>(_cur->Data());
             }
         };
     }
@@ -758,7 +947,7 @@ namespace Commons::Collections {
             AddToTail(elem);
         }
 
-        SharedPointer<ListNode<T>> Find(T elem, SharedPointer<IEqualityComparator<T>> equalityComparator) const {
+        SharedPointer<ListNode<T>> Find(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) const {
             if (!equalityComparator || !_root)
                 return nullptr;
             const auto end = _root->_next;
@@ -773,11 +962,11 @@ namespace Commons::Collections {
         }
 
         virtual bool Contains(T elem) const override {
-            const auto compare = GetDefaultEqualityComparator<T>();
+            const auto compare = GetDefaultValueEqualityComparator<T>();
             return Find(elem, compare);
         }
 
-        void Remove(T elem, SharedPointer<IEqualityComparator<T>> equalityComparator) {
+        void Remove(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) {
             if (!equalityComparator || !_root)
                 return;
             const auto end = _root->_next;
@@ -797,7 +986,7 @@ namespace Commons::Collections {
         }
 
         virtual void Remove(T elem) override {
-            Remove(elem, GetDefaultEqualityComparator<T>());
+            Remove(elem, GetDefaultValueEqualityComparator<T>());
         }
 
         virtual ~List() override {
@@ -820,10 +1009,33 @@ namespace Commons::Collections {
             _root = nullptr;
             _count = 0;
         }
+
+        SharedPointer<ListNode<T>> GetHead() const {
+            return _root;
+        }
+        SharedPointer<ListNode<T>> GetTail() const {
+            return _root ? _root->_prev.Pin() : nullptr;
+        }
     };
 }
 
-
+static void ListTest(){
+    Commons::Collections::List<int> a;
+    for (int i=0;i<18;++i){
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+        a.Add(i);
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+    }
+    auto enumerator = a.GetEnumerator();
+    for (int i=15;i<20;++i) {
+        a.Remove(i);
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+    }
+    while (enumerator->MoveNext()) {
+        syslog.messagef(LogLevel::INFO, "list %i", *enumerator->Get());
+    }
+}
+using namespace Commons;
 
 
 
@@ -833,10 +1045,16 @@ namespace Commons::Collections {
 class FIFOScheduler : public SchedulingAlgorithm
 {
 public:
+    FIFOScheduler() {
+        ListTest();
+    }
+
 	/**
 	 * Returns the friendly name of the algorithm, for debugging and selection purposes.
 	 */
-	const char* name() const override { return "fifo"; }
+	const char* name() const override { 
+        return "fifo"; 
+    }
 
 	/**
 	 * Called when a scheduling entity becomes eligible for running.
@@ -844,7 +1062,8 @@ public:
 	 */
 	void add_to_runqueue(SchedulingEntity& entity) override
 	{
-		not_implemented();
+        UniqueIRQLock _l;
+        runqueue.AddToTail(&entity);
 	}
 
 	/**
@@ -853,7 +1072,8 @@ public:
 	 */
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
-		not_implemented();
+        UniqueIRQLock _l;
+        runqueue.Remove(&entity);
 	}
 
 	/**
@@ -863,12 +1083,15 @@ public:
 	 */
 	SchedulingEntity *pick_next_entity() override
 	{
-		not_implemented();
+        if (!runqueue.GetCount())
+            return nullptr;
+        return runqueue.GetHead()->Data();
 	}
 
 private:
 	// A list containing the current runqueue.
-	List<SchedulingEntity *> runqueue;
+	Commons::Collections::List<SchedulingEntity *> runqueue;
+
 };
 
 /* --- DO NOT CHANGE ANYTHING BELOW THIS LINE --- */

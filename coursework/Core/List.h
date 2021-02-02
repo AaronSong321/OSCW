@@ -8,15 +8,15 @@ namespace Commons::Collections {
     template <class T>
     class ListNode {
     private:
-        SharedPointer<T> _data;
+        T _data;
         SharedPointer<ListNode<T>> _next;
         WeakPointer<ListNode<T>> _prev;
         friend class List<T>;
 
     public:
-        SharedPointer<T> Data() const { return _data; }
+        T Data() const { return _data; }
         SharedPointer<ListNode<T>> Next() const { return _next; }
-        ListNode(T data): _data(MakeShared<T>(data)), _next(nullptr), _prev(nullptr) {
+        ListNode(T data): _data(data), _next(nullptr), _prev(nullptr) {
         }
     };
 
@@ -27,7 +27,7 @@ namespace Commons::Collections {
             const SharedPointer<ListNode<T>> _root;
             bool _startState;
         public:
-            ListIterator(const List<T>* list): _root(list->Root()), _cur(list->Root()), _startState(true) {
+            ListIterator(const List<T>* list): _cur(list->Root()), _root(list->Root()), _startState(true) {
             }
             virtual bool MoveNext() override {
                 if (!_cur)
@@ -40,7 +40,7 @@ namespace Commons::Collections {
                 return _cur != _root;
             }
             virtual SharedPointer<T> Get() const override {
-                return _cur->Data();
+                return MakeShared<T>(_cur->Data());
             }
         };
     }
@@ -114,7 +114,7 @@ namespace Commons::Collections {
             AddToTail(elem);
         }
 
-        SharedPointer<ListNode<T>> Find(T elem, SharedPointer<IEqualityComparator<T>> equalityComparator) const {
+        SharedPointer<ListNode<T>> Find(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) const {
             if (!equalityComparator || !_root)
                 return nullptr;
             const auto end = _root->_next;
@@ -129,11 +129,11 @@ namespace Commons::Collections {
         }
 
         virtual bool Contains(T elem) const override {
-            const auto compare = GetDefaultEqualityComparator<T>();
+            const auto compare = GetDefaultValueEqualityComparator<T>();
             return Find(elem, compare);
         }
 
-        void Remove(T elem, SharedPointer<IEqualityComparator<T>> equalityComparator) {
+        void Remove(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) {
             if (!equalityComparator || !_root)
                 return;
             const auto end = _root->_next;
@@ -153,7 +153,7 @@ namespace Commons::Collections {
         }
 
         virtual void Remove(T elem) override {
-            Remove(elem, GetDefaultEqualityComparator<T>());
+            Remove(elem, GetDefaultValueEqualityComparator<T>());
         }
 
         virtual ~List() override {

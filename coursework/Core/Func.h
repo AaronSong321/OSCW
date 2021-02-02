@@ -7,9 +7,13 @@
 #include "TypeTraits.h"
 #include "Memory.h"
 
-template <class RetType, class... ArgTypes>
-RetType __SomeUglyFunction(ArgTypes...);
-#define Function(RetType, ...) decltype(&__SomeUglyFunction<RetType, __VA_ARGS__>)
+namespace Commons {
+	namespace __impl {
+		template <class RetType, class... ArgTypes>
+		RetType __SomeUglyFunction(ArgTypes...);
+	}
+}
+#define Function(RetType, ...) decltype(&Commons::__impl::__SomeUglyFunction<RetType, __VA_ARGS__>)
 #define FunctionVariable(RetType, VarName, ...) RetType (*VarName)(__VA_ARGS__)
 
 namespace Commons{
@@ -47,7 +51,7 @@ namespace Commons{
         operator Function(RetType, ArgTypes...)(){
             return _fpointer;
         }
-        virtual RetType Invoke(ArgTypes&&... args) const override {
+        virtual RetType Invoke(ArgTypes... args) const override {
             return _fpointer(Forward<ArgTypes>(args)...);
         }
 

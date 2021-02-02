@@ -2,10 +2,28 @@
 
 #include <infos.h>
 
+template <class T>
+static void memcpy(const T* from, T* to, int size){
+	for (int i=0;i<size;++i)
+		to[i]=from[i];
+}
+template <class T>
+static void strcpy(const T* from, T* to, int size = 1<<sizeof(T)-1){
+	for (int i=0;i<size && *to; ++i)
+		to[i]=from[i];
+}
+constexpr int MaxHistoryNumber = 15;
+constexpr char UpArrow = 17;
+constexpr char DownArrow = 18;
+static char commandHistory[MaxHistoryNumber][128];
+static int historyIndex = -1;
+static int historyNumber = 0;
+
 static void run_command(const char *cmd)
 {
-	//printf("Running Command: %s\n", cmd);
-	
+	strcpy<char>(cmd, commandHistory[(++historyIndex==15)?0:historyIndex], 128);
+	++historyNumber;
+
 	char prog[64];
 	int n = 0;
 	while (*cmd && *cmd != ' ' && n < 63) {
@@ -17,8 +35,7 @@ static void run_command(const char *cmd)
 		for (int j=n;j>=0;--j)
 			prog[j+5]=prog[j];
 		const char* usrPath="/usr/";
-		for (int j=0;j<5;++j)
-			prog[j]=usrPath[j];
+		memcpy(usrPath, prog, 5);
 	}
 	
 	if (*cmd) cmd++;
@@ -43,6 +60,7 @@ int main(const char *cmdline)
 
 		char command_buffer[128];
 		int n = 0;
+		int checkHistoryIndex = 0;
 
 		while (n < 127) {
 			char c = getch();
@@ -56,6 +74,31 @@ int main(const char *cmdline)
 			} else {
 				command_buffer[n++] = c;
 				printf("%c", c);
+			}
+			if (c == UpArrow) {
+				if (!historyNumber) continue;
+				if (++checkHistoryIndex <= historyNumber) {
+					if (checkHistoryIndex == MaxHistoryNumber)
+						--checkHistoryIndex;
+					int index = historyIndex - checkHistoryIndex;
+					if (index >= MaxHistoryNumber)
+						index -= MaxHistoryNumber;
+					printf("%s", commandHistory[index]);
+					// infos::kernel::syslog::messagef(infos::kernel::LogLevel::INFO, commandHistory[index]);
+					strcpy<char>(commandHistory[index], command_buffer, 128);
+				}
+			}
+			else if (c == DownArrow) {
+				if (!historyNumber) continue;
+				if (--checkHistoryIndex >= 0) {
+					if (!checkHistoryIndex)
+						++checkHistoryIndex;
+					int index = historyIndex - checkHistoryIndex;
+					if (index >= MaxHistoryNumber)
+						index -= MaxHistoryNumber;
+					printf("%s", commandHistory[index]);
+					strcpy<char>(commandHistory[index], command_buffer, 128);
+				}
 			}
 		}
 
