@@ -28,16 +28,13 @@ namespace Commons{
      * @tparam T
      */
     template <class T>
-    class IComparator: public Fun<int, const T&, const T&> {
-    public:
-        IComparator(Function(T, const T&, const T&) f): Fun<int, const T&, const T&>(f){}
-    };
-
-    template <class T> class A{};
-    template <class T> class B: public A<T>{};
+    using IComparator = Functor<int(const T&, const T&)>;
 
     template <class T>
-    IComparator<T> GetDefaultComparator()
+    using IEqualityComparator = Functor<bool(const T&, const T&)>;
+
+    template <class T>
+    SharedPointer<IComparator<T>> GetDefaultComparator()
     #if ENABLECONCEPT
     requires (CharTraits<T>::Value||IsIntegral<T>::Value)
     #endif
@@ -45,8 +42,20 @@ namespace Commons{
         auto lam = [](const T& lhs, const T& rhs) -> int {
             return lhs - rhs;
         };
-        int (*conv2)(const T&, const T&) = lam;
-        return IComparator<T>(conv2);
+        // auto p = LambdaToFunctor2<decltype(lam), const T&, const T&>(lam);
+        auto p = LambdaToFunctor<decltype(lam),int,const T&,const T&>(lam);
+        return p;
+    }
+
+    namespace __impl {
+        template <class T>
+        static bool _Equals(const T& lhs, const T& rhs) {
+            return lhs == rhs;
+        }
+    }
+    template <class T>
+    SharedPointer<IEqualityComparator<T>> GetDefaultEqualityComparator(){
+        return MakeShared<Fun<bool, const T&, const T&>>(&__impl::_Equals<T>).template StaticCast<IEqualityComparator<T>>();
     }
 
 }

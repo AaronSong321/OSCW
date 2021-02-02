@@ -78,7 +78,11 @@ namespace Commons::Collections{
         auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
         return t;
     }
-
+    template <class T, class ActualEnumeratorType>
+    SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
+        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
+    }
+    
     namespace _impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;
@@ -168,13 +172,13 @@ namespace Commons::Collections{
         virtual int GetCount() const = 0;
         virtual void Add(T elem) = 0;
         virtual void Clear() = 0;
+        virtual ~IInputCollection() { }
     };
 
     template <class T>
     class IOutputCollection: virtual public IEnumerable<T>{
     public:
         // using IEnumerable<T>::GetEnumerator;
-        virtual bool IsReadOnly() const = 0;
         virtual bool Contains(T elem) const = 0;
         virtual void Remove(T elem) = 0;
     };

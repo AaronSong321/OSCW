@@ -15,13 +15,13 @@ namespace Commons {
 
     template <class T> struct TypeIdentity { using Type = T; };
 
-    namespace _impl {
+    namespace __impl {
         template <class T>
         auto TryAddRValueReference(int)->TypeIdentity<T&&>;
         template <class T>
         auto TryAddRValueReference(...)->TypeIdentity<T>;
     }
-    template <class T> struct AddRvalueReference : decltype(_impl::TryAddRValueReference<T>(0)){};
+    template <class T> struct AddRvalueReference : decltype(__impl::TryAddRValueReference<T>(0)){};
     template <class T> using AddRvalueReferenceType = typename AddRvalueReference<T>::Type;
     template <class T>
     typename AddRvalueReference<T>::Type DeclVal() noexcept;
@@ -42,7 +42,7 @@ namespace Commons {
 
     template <class T> struct IsVoid : IsSame<void, typename RemoveCV<T>::Type> {};
 
-    namespace _impl
+    namespace __impl
     {
         template<class T>
         auto TestReturnable(int) -> decltype(void(static_cast<T(*)()>(0)), TrueType { });
@@ -55,8 +55,8 @@ namespace Commons {
     }
     template <class From, class To>
     struct IsConvertible : IntegralConstant<bool,
-            (decltype(_impl::TestReturnable<To>(0))::Value&&
-             decltype(_impl::TestImplicitlyConvertible<From, To>(0))::Value ||
+            (decltype(__impl::TestReturnable<To>(0))::Value&&
+             decltype(__impl::TestImplicitlyConvertible<From, To>(0))::Value ||
              (IsVoid<From>::Value && IsVoid<To>::Value))
     > {};
 
@@ -75,16 +75,16 @@ namespace Commons {
     template <class T>
     struct IsUnion: public FalseType{};
 
-    namespace _impl{
+    namespace __impl{
         template <class T>
         IntegralConstant<bool, !IsUnion<T>::Value> _Test_IsClass_Helper(int T::*);
         template <class>
         FalseType _Test_IsClass_Helper(...);
     }
     template <class T>
-    struct IsClass:decltype(_impl::_Test_IsClass_Helper<T>((void*)0)) {};
+    struct IsClass:decltype(__impl::_Test_IsClass_Helper<T>((void*)0)) {};
 
-    namespace _impl{
+    namespace __impl{
         template <class B>
         TrueType _TestPrePtrConvertible(const volatile B*);
         template <class B>
@@ -92,8 +92,116 @@ namespace Commons {
         template <class, class>
         auto _TestPreIsBaseOf(...)->TrueType;
         template <class Base, class Derived>
-        auto _TestPreIsBaseOf(int)-> decltype(_TestPrePtrConvertible<Base>(static_cast<Derived*>(0)));
+        auto _TestPreIsBaseOf(int)-> decltype(_TestPrePtrConvertible<Base>(static_cast<Derived*>(nullptr)));
     }
     template <class Base, class Derived>
-    struct IsBaseOf: IntegralConstant<bool, IsClass<Base>::Value && IsClass<Derived>::Value && decltype(_impl::_TestPreIsBaseOf<Base, Derived>(0))::Value>{};
-}
+    struct IsBaseOf: IntegralConstant<bool, IsClass<Base>::Value && IsClass<Derived>::Value && decltype(__impl::_TestPreIsBaseOf<Base, Derived>(0))::Value>{};
+    
+    template <bool b, class T = void>
+    struct EnableIf {};
+    template <class T>
+    struct EnableIf<true, T> { typedef T Type; };
+    template <bool b, class T = void>
+    using EnableIfType = typename EnableIf<b, T>::Type;
+
+    template <bool b, class T, class F>
+    struct Conditional { typedef T Type; };
+    template <class T, class F>
+    struct Conditional<false, T, F> { typedef F Type; };
+    template <bool b, class T, class F>
+    using ConditionalType = typename Conditional<b, T, F>::Type;
+
+    template <class T> struct IsArray: FalseType {};
+    template <class T> struct IsArray<T[]>: TrueType {};
+    template <class T, int n> struct IsArray<T[n]>: TrueType {};
+
+    template <class T> struct RemoveExtent { typedef T Type; };
+    template <class T> struct RemoveExtent<T[]> { typedef T Type; };
+    template <class T, int n> struct RemoveExtent<T[n]> { typedef T Type; };
+
+    template <class T> struct IsReference: FalseType {};
+    template <class T> struct IsReference<T&>: TrueType {};
+    template <class T> struct IsReference<T&&>: TrueType {};
+
+    template <class T> struct IsConst: FalseType {};
+    template <class T> struct IsConst<const T>: TrueType {};
+    template <class T> struct IsConst<const volatile T>: TrueType {};
+
+    template <class T> struct IsFunction: IntegralConstant<bool,
+#ifdef __clang__
+    __is_function(T)
+#else
+    !(IsReference<T>::Value || IsConst<const T>::Value)
+#endif
+    > {};
+
+    namespace __impl {
+        template <class T>
+        auto TryAddPointer(int)->TypeIdentity<RemoveReferenceType<T>*>;
+        template <class T>
+        auto TryAddPointer(...)->TypeIdentity<T>;
+    }
+    template <class T>
+    struct AddPointer: decltype(__impl::TryAddPointer<T>(0)) {};
+    template <class T> using AddPointerType = typename AddPointer<T>::Type;
+
+    template <class T>
+    struct Decay {
+    private:
+        typedef RemoveReferenceType<T> U;
+    public:
+        typedef typename Conditional<
+            IsArray<U>::Value,
+            typename RemoveExtent<U>::Type*,
+            typename Conditional<
+                IsFunction<U>::Value,
+                AddPointerType<U>,
+                RemoveCVType<U>
+            >::Type
+        >::Type Type;
+    };
+    template <class T> using DecayType = typename Decay<T>::Type;
+
+
+    namespace __impl{
+        template <class T> struct IsReferenceWrapper: FalseType {};
+        template <class T>
+        struct InvokeImpl {
+            template <class F, class... Args>
+            static auto Call(F&& f, Args&&... args) -> decltype(Forward<F>(f)(Forward<Args>(args)...));
+        };
+
+        template <class B, class MT>
+        struct InvokeImpl<MT B::*> {
+            template <class T, class Td = DecayType<T>, class __A = typename EnableIf<IsBaseOf<B, Td>::Value>::Type>
+            static auto Get(T&& t) -> T&&;
+            template <class T, class Td = DecayType<T>, class __A = typename EnableIf<IsReferenceWrapper<Td>::Value>::Type>
+            static auto Get(T&& t) -> decltype(t.Get());
+            template <class T, class Td = DecayType<T>,
+                class __A = typename EnableIf<!IsBaseOf<B, Td>::Value>::Type,
+                class __B = typename EnableIf<!IsReferenceWrapper<Td>::Value>::Type
+            > static auto Get(T&& t) -> decltype(*Forward<T>(t));
+
+            template <class T, class... Args, class MT1, class __A = typename EnableIf<IsFunction<MT1>::Value>::Type>
+            static auto Call(MT1 B::*pmf, T&& t, Args&&... args) -> decltype(InvokeImpl::Get(Forward<T>(t)).*pmf(Forward<Args>(args)...));
+            template <class T>
+            static auto Call(MT B::*pmd, T&& t) -> decltype(InvokeImpl::Get(Forward<T>(t)).*pmd);
+        };
+
+        template <class F, class... Args, class Fd = DecayType<F>>
+        auto __Invoke(F&& f, Args&&... args) -> decltype(InvokeImpl<Fd>::Call(Forward<F>(f), Forward<Args>(args)...));
+
+        template <class AlwaysVoid, class __A, class... __Args> struct InvokeResult {};
+        template <class F, class... Args>
+        struct InvokeResult<decltype(void(__Invoke(DeclVal<F>(), DeclVal<Args>()...))), F, Args...> {
+            using Type = decltype(__Invoke(DeclVal<F>(), DeclVal<Args>()...));
+        };
+    }
+
+    template <class > struct ResultOf;
+    template <class F, class... ArgTypes> struct ResultOf<F(ArgTypes...)>: __impl::InvokeResult<void, F, ArgTypes...> {};
+    template <class F, class... ArgTypes>
+    struct InvokeResult: __impl::InvokeResult<void, F, ArgTypes...> {};
+    template <class T> using ResultOfType = typename ResultOf<T>::Type;
+    template <class F, class... ArgTypes> using InvokeResultType = typename InvokeResult<F, ArgTypes...>::Type;
+};

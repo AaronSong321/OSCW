@@ -114,7 +114,21 @@ namespace Commons
         WeakPointer<FibonacciNode<TKey>> GetLeft() const { return _left; }
         SharedPointer<FibonacciNode<TKey>> GetRight() const { return _right; }
 
-        FibonacciNode(TKey key, SharedPointer<FibonacciHeap<TKey>> tree):_key(key),_left(0),_right(0),_child(0),_parent(0),_degree(0),_mark(false),_minimumCausedByDeletion(false),_tree(tree) {
+        FibonacciNode(TKey key, SharedPointer<FibonacciHeap<TKey>> tree):_key(key),_left(nullptr),_right(nullptr),_child(nullptr),
+                _parent(nullptr),_degree(0),_mark(false),_minimumCausedByDeletion(false),_tree(tree) {
+        }
+
+    private:
+        void DestroyRing() {
+            if (_child)
+                if (_child->_right) {
+                    _child->_right = nullptr;
+                }
+        }
+
+    public:
+        virtual ~FibonacciNode() {
+            DestroyRing();
         }
     };
 
@@ -155,7 +169,7 @@ namespace Commons
     private:
         SharedPointer<FibonacciNode<TKey>> _min;
         int _degree;
-        const IComparator<TKey> _comparator;
+        const SharedPointer<IComparator<TKey>> _comparator;
 
         void AddToRootList(SharedPointer<FibonacciNode<TKey>> node){
             //ThrowIf0(node);
@@ -256,11 +270,11 @@ namespace Commons
         // using Collections::IInputCollection<TKey>::Add;
         // using Collections::IInputCollection<TKey>::Clear;
 
-        FibonacciHeap(IComparator<TKey> comparator): _min(0), _degree(0), _comparator(comparator) {
+        FibonacciHeap(SharedPointer<IComparator<TKey>> comparator): _min(nullptr), _degree(0), _comparator(comparator) {
         }
 
         inline bool CompareKey(TKey lhs, TKey rhs) const {
-            return _comparator(lhs, rhs);
+            return _comparator->Invoke(lhs, rhs);
         }
 
         SharedPointer<FibonacciNode<TKey>> Insert(TKey key){
@@ -343,6 +357,13 @@ namespace Commons
         virtual void Clear() override {
             _degree = 0;
             _min = 0;
+        }
+
+        virtual ~FibonacciHeap() override {
+            if (_min) {
+                _min->_right = nullptr;
+                _min->DestroyRing();
+            }
         }
     };
 

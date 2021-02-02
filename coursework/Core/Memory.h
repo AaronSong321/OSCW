@@ -54,6 +54,8 @@ namespace Commons{
         }
         SharedPointer(): _data(0), _count(0){
         }
+        SharedPointer(decltype(nullptr)): _data(0), _count(0){
+        }
 
         SharedPointer<T>& operator=(SharedPointer<T>& other){
             other.Hold();
@@ -62,7 +64,7 @@ namespace Commons{
             _count = other._count;
             return *this;
         }
-        SharedPointer<T>& operator=(void*){
+        SharedPointer<T>& operator=(decltype(nullptr)){
             Release();
             _data = 0;
             _count = 0;
@@ -102,7 +104,7 @@ namespace Commons{
                 return SharedPointer<TargetType>(ptr, _count);
             }
             else
-                return SharedPointer<TargetType>(0);
+                return SharedPointer<TargetType>(nullptr);
         }
 
     public:
@@ -189,17 +191,7 @@ namespace Commons{
             _count = p._count;
             return *this;
         }
-        // WeakPointer& operator=(const WeakPointer<T>& p){
-        //     if (p._data && p._count && *p._count>0){
-        //         _data = p._data;
-        //         _count = p._count;
-        //     }
-        //     else{
-        //         _data = 0;
-        //         _count = 0;
-        //     }
-        //     return *this;
-        // }
+        
         WeakPointer& operator=(void*) {
             _data = 0;
             _count = 0;

@@ -19,7 +19,7 @@ namespace Commons{
     template <class Ret, class... Args>
     class Functor<Ret(Args...)>{
     public:
-        virtual Ret Invoke(Args&&...) const = 0;
+        virtual Ret Invoke(Args...) const = 0;
         virtual ~Functor() { }
     };
 
@@ -68,14 +68,24 @@ namespace Commons{
         Ret operator()(Args... args){
             return _capture(args...);
         }
-        virtual Ret Invoke(Args&&... args) const override {
-            return _capture(Forward<Args>(args)...);
+        virtual Ret Invoke(Args... args) const override {
+            // return _capture(Forward<Args>(args)...);
+            return _capture(args...);
         }
     };
 
     template <class Y, class Ret, class...Args>
     SharedPointer<Functor<Ret(Args...)>> LambdaToFunctor(Y lambdaExpression){
         return MakeShared<Capture<Y,Ret,Args...>>(lambdaExpression).template StaticCast<Functor<Ret(Args...)>>();
+    }
+    /** Convert a lambda to a Functor with the return type of the lambda deduced.
+     * Argument types are still required.
+     */
+    template <class Y, class... Args>
+    using Ret = InvokeResultType<Y, Args...>;
+    template <class Y, class... Args>
+    SharedPointer<Functor<Ret<Y, Args...>(Args...)>> LambdaToFunctor2(Y lambdaExpression) {
+        return MakeShared<Capture<Y, typename InvokeResult<Y, Args...>::Type, Args...>>(lambdaExpression).template StaticCast<Functor<Ret<Y, Args...>(Args...)>>();
     }
 }
 
