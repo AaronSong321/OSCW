@@ -94,7 +94,7 @@ namespace Commons
         }
 
         using IComparable<FibonacciNode<TKey>>::CompareTo;
-        virtual int CompareTo(FibonacciNode<TKey> other) const override {
+        int CompareTo(FibonacciNode<TKey> other) const override {
             if (_tree.Pin() != other._tree.Pin())
                 ShallThrow(0);
             if (_minimumCausedByDeletion){
@@ -151,13 +151,13 @@ namespace Commons
 
         }
         // using Collections::IEnumerator<TKey>::MoveNext;
-        virtual bool MoveNext() override {
+        bool MoveNext() override {
             if (_index++ == _degree)
                 return false;
             _iter = _iter->_right;
             return true;
         }
-        virtual SharedPointer<FibonacciNode<TKey>> Get() const override {
+        SharedPointer<FibonacciNode<TKey>> Get() const override {
             return _iter;
         }
     };
@@ -350,16 +350,16 @@ namespace Commons
             ExtractMin();
         }
 
-        virtual int GetCount() const override {
+        int GetCount() const override {
             return _degree;
         }
-        virtual void Add(TKey key) override { Insert(key); }
-        virtual void Clear() override {
+        void Add(TKey key) override { Insert(key); }
+        void Clear() override {
             _degree = 0;
             _min = 0;
         }
 
-        virtual ~FibonacciHeap() override {
+        ~FibonacciHeap() override {
             if (_min) {
                 _min->_right = nullptr;
                 _min->DestroyRing();

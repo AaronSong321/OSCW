@@ -51,7 +51,7 @@ namespace Commons{
         operator Function(RetType, ArgTypes...)(){
             return _fpointer;
         }
-        virtual RetType Invoke(ArgTypes... args) const override {
+        RetType Invoke(ArgTypes... args) const override {
             return _fpointer(Forward<ArgTypes>(args)...);
         }
 
@@ -72,8 +72,7 @@ namespace Commons{
         Ret operator()(Args... args){
             return _capture(args...);
         }
-        virtual Ret Invoke(Args... args) const override {
-            // return _capture(Forward<Args>(args)...);
+        Ret Invoke(Args... args) const override {
             return _capture(args...);
         }
     };
@@ -82,6 +81,16 @@ namespace Commons{
     SharedPointer<Functor<Ret(Args...)>> LambdaToFunctor(Y lambdaExpression){
         return MakeShared<Capture<Y,Ret,Args...>>(lambdaExpression).template StaticCast<Functor<Ret(Args...)>>();
     }
+#define MacroDeclareLambdaFunctor0(name, capture, Ret, block) auto __lambda_##name = capture() -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret>>(__lambda_##name).template StaticCast<Functor<Ret()>>()
+#define MacroDeclareLambdaFunctor1(name, capture, Arg1, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1)>>()
+#define MacroDeclareLambdaFunctor2(name, capture, Arg1, Arg2, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2)>>()
+#define MacroDeclareLambdaFunctor3(name, capture, Arg1, Arg2, Arg3, Ret, block) auto __lambda_##name = capture(Arg1 arg1, Arg2 arg2, Arg3 arg3) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2, Arg3>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2, Arg3)>>()
+
+
     /** Convert a lambda to a Functor with the return type of the lambda deduced.
      * Argument types are still required.
      */

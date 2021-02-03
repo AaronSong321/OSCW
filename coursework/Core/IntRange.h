@@ -33,10 +33,10 @@ namespace Commons{
             explicit Range_Enumerator(Range<T> r):_start(r.GetStart()), _end(r.GetEnd()), _current(r.GetStart() - (T)1){
 
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 return ++_current != _end;
             }
-            virtual SharedPointer<T> Get() const override {
+            SharedPointer<T> Get() const override {
                 return MakeShared<T>(_current);
             }
         };
@@ -57,7 +57,7 @@ namespace Commons{
         T GetStart() const { return _start; }
         T GetEnd() const { return _end; }
 
-        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+        SharedPointer<IEnumerator<T>> GetEnumerator() const override {
             auto e = new ::Commons::__impl::Range_Enumerator(*this);
             auto ptr = SharedPointer(e);
             return ptr.template StaticCast<IEnumerator<T>>();

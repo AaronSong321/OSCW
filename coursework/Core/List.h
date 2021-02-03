@@ -1,6 +1,8 @@
 
 #include "Collection.h"
 #include "Comparator.h"
+#include <iostream>
+using namespace std;
 
 namespace Commons::Collections {
     template <class T>
@@ -30,7 +32,7 @@ namespace Commons::Collections {
         public:
             ListIterator(const List<T>* list): _cur(list->Root()), _root(list->Root()), _startState(true) {
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 if (!_cur)
                     return false;
                 if (_startState) {
@@ -40,7 +42,7 @@ namespace Commons::Collections {
                 _cur = _cur->Next();
                 return _cur != _root;
             }
-            virtual SharedPointer<T> Get() const override {
+            SharedPointer<T> Get() const override {
                 return MakeShared<T>(_cur->Data());
             }
         };
@@ -67,6 +69,9 @@ namespace Commons::Collections {
         }
 
         void RemoveNode(SharedPointer<ListNode<T>> node) {
+            if (!node->_prev.Pin() || !node->_next) {
+                node = node;
+            }
             node->_next->_prev = node->_prev.Pin();
             node->_prev.Pin()->_next = node->_next;
             if (node == _root) {
@@ -95,6 +100,7 @@ namespace Commons::Collections {
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
+                ++_count;
             }
             _root = newNode;
             return newNode;
@@ -102,16 +108,17 @@ namespace Commons::Collections {
         SharedPointer<ListNode<T>> AddToTail(T elem) {
             auto newNode = MakeShared<ListNode<T>>(elem);
             if (_root) {
-                AddAfter(newNode, _root);
+                AddAfter(newNode, _root->_prev.Pin());
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
                 _root = newNode;
+                ++_count;
             }
             return newNode;
         }
 
-        virtual void Add(T elem) override {
+        void Add(T elem) override {
             AddToTail(elem);
         }
 
@@ -129,7 +136,7 @@ namespace Commons::Collections {
             return nullptr;
         }
 
-        virtual bool Contains(T elem) const override {
+        bool Contains(T elem) const override {
             const auto compare = GetDefaultValueEqualityComparator<T>();
             return Find(elem, compare);
         }
@@ -147,35 +154,53 @@ namespace Commons::Collections {
                 }
                 node = node->_next;
             } while (node != end);
-            deleteIndex = 0;
-            while (deleteList[deleteIndex]) {
-                RemoveNode(deleteList[deleteIndex++]);
+            int p = 0;
+            while (p < deleteIndex) {
+                RemoveNode(deleteList[p++]);
             }
         }
 
-        virtual void Remove(T elem) override {
+        void Remove(T elem) override {
             Remove(elem, GetDefaultValueEqualityComparator<T>());
         }
 
-        virtual ~List() override {
+        ~List() override {
             if (_root)
                 _root->_next = nullptr;
         }
 
-        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+        SharedPointer<IEnumerator<T>> GetEnumerator() const override {
             auto enumerator = MakeShared<__impl::ListIterator<T>>(this);
             return enumerator.template StaticCast<IEnumerator<T>>();
         }
 
-        virtual int GetCount() const override {
+        int GetCount() const override {
             return _count;
         }
 
-        virtual void Clear() override {
+        void Clear() override {
             if (_root) 
                 _root->_next = nullptr;
             _root = nullptr;
             _count = 0;
         }
+        
+        SharedPointer<ListNode<T>> GetHead() const {
+            return _root;
+        }
+        SharedPointer<ListNode<T>> GetTail() const {
+            return _root ? _root->_prev.Pin() : nullptr;
+        }
+
+//        void Print() const {
+//            cout<<"Traverse list count="<<_count<<endl;
+//            if (!_count)
+//                return;
+//            auto node = _root;
+//            do {
+//                cout << node << ", next="<<node->_next.Get()<<" "<<node->_next<<", prev="<<node->_prev.Pin().Get()<<" "<<node->_prev<<endl;
+//                node = node->_next;
+//            } while (node != _root);
+//        }
     };
 }

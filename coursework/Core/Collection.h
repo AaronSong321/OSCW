@@ -69,7 +69,7 @@ namespace Commons::Collections{
             const SharedPointer<IEnumerator<T>> _source;
         public:
             AnonymousEnumerable(SharedPointer<IEnumerator<T>> source): _source(source){}
-            virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+            SharedPointer<IEnumerator<T>> GetEnumerator() const override {
                 return _source;
             }
         };
@@ -138,10 +138,10 @@ namespace Commons::Collections{
             _IEnumerable_Transform_IEnumerator(IEnumerable<T> source, Function(U, T) trans): _source(source.GetEnumerator()), _trans(trans){
             }
 
-            virtual typename IEnumerator<U>::EnumeratorType Get() const override {
+             typename IEnumerator<U>::EnumeratorType Get() const override {
                 return MakeEnumerator(trans(*_source));
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 return _source.MoveNext();
             }
         };
@@ -154,14 +154,14 @@ namespace Commons::Collections{
         public:
             _IEnumerable_Filter_IEnumerator(IEnumerable<T> source, Function(bool, T) filter): _source(source.GetEnumerator()), _filter(filter){}
             
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 while (_source.MoveNext()) {
                     if (_filter(_source.Get()))
                         return true;
                 }
                 return false;
             }
-            virtual SharedPointer<T> Get() override
+            SharedPointer<T> Get() override
             {
                 return _source.Get();
             }

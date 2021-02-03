@@ -1,5 +1,5 @@
 /*
- * Round-robin Scheduling Algorithm
+ * FIFO Scheduling Algorithm
  * SKELETON IMPLEMENTATION -- TO BE FILLED IN FOR TASK (2)
  */
 
@@ -14,6 +14,7 @@
 
 using namespace infos::kernel;
 using namespace infos::util;
+
 
 namespace Commons {
 	template <class T> struct RemoveReference { typedef T Type; };
@@ -251,67 +252,75 @@ namespace Commons{
     struct SharedPointer{
     private:
         T* _data;
-        int* _count;
-        SharedPointer(T* rawPointer, int* counterPointer): _data(rawPointer), _count(counterPointer){
-            ++*_count;
+        mutable int* _sharedCount;
+        mutable int* _weakCount;
+        SharedPointer(T* rawPointer, int* sharedPtr, int* weakPtr): _data(rawPointer), _sharedCount(sharedPtr), _weakCount(weakPtr){
+            ++*_sharedCount;
         }
         template <class U>
         friend struct WeakPointer;
         template <class U>
         friend struct SharedPointer;
-        template <class U>
-        friend SharedPointer<U> MakeTemp(U*);
 
     private:
-        void Hold(){
-            ++*_count;
+        void Hold() const {
+            if (_sharedCount)
+                ++*_sharedCount;
         }
-        void Release() noexcept{
-            if (!--*_count){
+        void Release() const noexcept{
+            if (!_sharedCount)
+                return;
+            if (!--*_sharedCount){
                 delete _data;
-                delete _count;
+                --*_weakCount;
             }
         }
 
     public:
         using ElementType = T;
         using WeakType = WeakPointer<T>;
-        explicit SharedPointer(T* rawPointer): _data(rawPointer), _count(rawPointer?new int(1):0){
+        explicit SharedPointer(T* rawPointer): _data(rawPointer), _sharedCount(rawPointer ? new int(1) : nullptr), _weakCount(rawPointer? new int(1): nullptr){
         }
-        SharedPointer(const SharedPointer<T>& p): _data(p._data), _count(p._count) {
-            ++*_count;
+        SharedPointer(const SharedPointer<T>& p): _data(p._data), _sharedCount(p._sharedCount), _weakCount(p._weakCount) {
+            Hold();
         }
-        SharedPointer(SharedPointer<T>&& p) noexcept: _data(p._data), _count(p._count) {
-            ++*_count;
+        SharedPointer(SharedPointer<T>&& p) noexcept: _data(p._data), _sharedCount(p._sharedCount), _weakCount(p._weakCount) {
+            Hold();
         }
-        SharedPointer(): _data(0), _count(0){
+        SharedPointer(): _data(0), _sharedCount(nullptr), _weakCount(nullptr) {
         }
-        SharedPointer(decltype(nullptr)): _data(0), _count(0){
+        SharedPointer(decltype(nullptr)): _data(0), _sharedCount(nullptr), _weakCount(nullptr){
         }
 
-        SharedPointer<T>& operator=(SharedPointer<T>& other){
+        SharedPointer<T>& operator=(const SharedPointer<T>& other){
             other.Hold();
             Release();
             _data = other._data;
-            _count = other._count;
+            _sharedCount = other._sharedCount;
+            _weakCount = other._weakCount;
+            return *this;
+        }
+        SharedPointer<T>& operator=(SharedPointer<T>&& other) noexcept {
+            other.Hold();
+            Release();
+            _data = other._data;
+            _sharedCount = other._sharedCount;
+            _weakCount = other._weakCount;
             return *this;
         }
         SharedPointer<T>& operator=(decltype(nullptr)){
             Release();
             _data = 0;
-            _count = 0;
-            return *this;
-        }
-        SharedPointer<T>& operator=(SharedPointer<T>&& other){
-            other.Hold();
-            Release();
-            _data = other._data;
-            _count = other._count;
+            _sharedCount = nullptr;
+            _weakCount = nullptr;
             return *this;
         }
 
-        bool operator==(const SharedPointer<T>& other) const{
+        bool operator==(const SharedPointer<T> other) const {
             return _data == other._data;
+        }
+        bool operator!=(const SharedPointer<T> other) const {
+            return !(_data == other._data);
         }
 
         ~SharedPointer(){
@@ -333,7 +342,7 @@ namespace Commons{
         SharedPointer<TargetType> ConstructPointerAtType(TargetType* ptr) {
             if (ptr){
                 Hold();
-                return SharedPointer<TargetType>(ptr, _count);
+                return SharedPointer<TargetType>(ptr, _sharedCount, _weakCount);
             }
             else
                 return SharedPointer<TargetType>(nullptr);
@@ -344,18 +353,10 @@ namespace Commons{
         SharedPointer<TBase> StaticCast();
         template <class TDerived>
         SharedPointer<TDerived> DynamicCast();
-
-        // template <class TRemoveCV>
-        // SharedPointer<TRemoveCV> ConstCast() {
-        //     auto data = const_cast<TRemoveCV*>(_data);
-        //     return ConstructPointerAtType(data);
-        // }
-
-        // template <class TFP>
-        // SharedPointer<TFP> ReinterpretCast(){
-        //     auto data = reinterpret_cast<TFP*>(_data);
-        //     return ConstructPointerAtType(data);
-        // }
+        template <class TBase>
+        SharedPointer<TBase> ConstCast();
+        template <class TDerived>
+        SharedPointer<TDerived> ReinterpretCast();
     };
 
     template <class T>
@@ -370,28 +371,23 @@ namespace Commons{
         auto data = dynamic_cast<TBase*>(_data);
         return ConstructPointerAtType(data);
     }
-    // template <class T>
-    // template <class TBase>
-    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
-    //     auto data = static_cast<TBase*>(_data);
-    //     return ConstructPointerAtType(data);
-    // }
-    // template <class T>
-    // template <class TBase>
-    // SharedPointer<TBase> SharedPointer<T>::StaticCast<TBase>() {
-    //     auto data = static_cast<TBase*>(_data);
-    //     return ConstructPointerAtType(data);
-    // }
+     template <class T>
+     template <class TBase>
+     SharedPointer<TBase> SharedPointer<T>::ConstCast() {
+         auto data = const_cast<TBase*>(_data);
+         return ConstructPointerAtType(data);
+     }
+     template <class T>
+     template <class TBase>
+     SharedPointer<TBase> SharedPointer<T>::ReinterpretCast() {
+         auto data = reinterpret_cast<TBase*>(_data);
+         return ConstructPointerAtType(data);
+     }
 
     template<class T, class... ArgTypes>
     inline SharedPointer<T> MakeShared(ArgTypes&&... objects){
         auto p = new T(Forward<ArgTypes>(objects)...);
         return SharedPointer<T>(p);
-    }
-
-    template <class T>
-    inline SharedPointer<T> MakeTemp(T* rawPointer){
-        return SharedPointer(rawPointer, new int(100));
     }
 
     template<class T, class U>
@@ -407,26 +403,49 @@ namespace Commons{
     struct WeakPointer{
     private:
         T* _data;
-        int* _count;
+        int* _sharedCount;
+        int* _weakCount;
 
+                void Hold() {
+            if (_weakCount)
+                ++*_weakCount;
+        }
+        void Release() {
+            if (_weakCount) {
+                if (!--*_weakCount) {
+                    delete _sharedCount;
+                    delete _weakCount;
+                }
+            }
+        }
     public:
-        using ElementType = T;
-        explicit WeakPointer(const SharedPointer<T>& p): _data(p._data), _count(p._count){
+        explicit WeakPointer(const SharedPointer<T>& p): _data(p._data), _sharedCount(p._sharedCount), _weakCount(p._weakCount){
+            Hold();
         }
-        WeakPointer(void*): _data(0), _count(0){ }
+        WeakPointer(decltype(nullptr)): _data(nullptr), _sharedCount(nullptr), _weakCount(nullptr) { }
+
         SharedPointer<T> Pin() const {
-            return SharedPointer<T>(_data, _count);
+            if (_sharedCount && *_sharedCount)
+                return SharedPointer<T>(_data, _sharedCount, _weakCount);
+            return nullptr;
         }
 
-        WeakPointer& operator=(const SharedPointer<T>& p){
-            _data = p._data;
-            _count = p._count;
+        WeakPointer& operator=(const SharedPointer<T>& p) noexcept {
+            if (_data != p._data) {
+                Release();
+                _data = p._data;
+                _sharedCount = p._sharedCount;
+                _weakCount = p._weakCount;
+                Hold();
+            }
             return *this;
         }
         
-        WeakPointer& operator=(void*) {
-            _data = 0;
-            _count = 0;
+        WeakPointer& operator=(decltype(nullptr)) noexcept {
+            Release();
+            _data = nullptr;
+            _sharedCount = nullptr;
+            _weakCount = nullptr;
             return *this;
         }
     };
@@ -476,7 +495,7 @@ namespace Commons{
         operator Function(RetType, ArgTypes...)(){
             return _fpointer;
         }
-        virtual RetType Invoke(ArgTypes... args) const override {
+        RetType Invoke(ArgTypes... args) const override {
             return _fpointer(Forward<ArgTypes>(args)...);
         }
 
@@ -497,8 +516,7 @@ namespace Commons{
         Ret operator()(Args... args){
             return _capture(args...);
         }
-        virtual Ret Invoke(Args... args) const override {
-            // return _capture(Forward<Args>(args)...);
+        Ret Invoke(Args... args) const override {
             return _capture(args...);
         }
     };
@@ -507,6 +525,16 @@ namespace Commons{
     SharedPointer<Functor<Ret(Args...)>> LambdaToFunctor(Y lambdaExpression){
         return MakeShared<Capture<Y,Ret,Args...>>(lambdaExpression).template StaticCast<Functor<Ret(Args...)>>();
     }
+#define MacroDeclareLambdaFunctor0(name, capture, Ret, block) auto __lambda_##name = capture() -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret>>(__lambda_##name).template StaticCast<Functor<Ret()>>()
+#define MacroDeclareLambdaFunctor1(name, capture, Arg1, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1)>>()
+#define MacroDeclareLambdaFunctor2(name, capture, Arg1, Arg2, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2)>>()
+#define MacroDeclareLambdaFunctor3(name, capture, Arg1, Arg2, Arg3, Ret, block) auto __lambda_##name = capture(Arg1 arg1, Arg2 arg2, Arg3 arg3) -> Ret block; \
+        auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2, Arg3>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2, Arg3)>>()
+
+
     /** Convert a lambda to a Functor with the return type of the lambda deduced.
      * Argument types are still required.
      */
@@ -607,6 +635,7 @@ namespace Commons::Collections{
         virtual EnumeratorType Get() const = 0;
         virtual bool MoveNext() = 0;
         virtual ~IEnumerator() {}
+        
         template <class... ArgTypes>
         static inline EnumeratorType MakeEnumerator(ArgTypes&&... args){
             return T(Forward<ArgTypes>(args)...);
@@ -630,14 +659,14 @@ namespace Commons::Collections{
     template <class T>
     class IEnumerable;
 
-    namespace _impl{
+    namespace __impl{
         template <class T>
         class AnonymousEnumerable: public IEnumerable<T>{
         private:
             const SharedPointer<IEnumerator<T>> _source;
         public:
             AnonymousEnumerable(SharedPointer<IEnumerator<T>> source): _source(source){}
-            virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+            SharedPointer<IEnumerator<T>> GetEnumerator() const override {
                 return _source;
             }
         };
@@ -645,15 +674,15 @@ namespace Commons::Collections{
 
     template <class T>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable(SharedPointer<IEnumerator<T>> enumerator){
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator).template StaticCast<IEnumerable<T>>();
         return t;
     }
     template <class T, class ActualEnumeratorType>
     SharedPointer<IEnumerable<T>> EnumeratorToEnumerable2(SharedPointer<ActualEnumeratorType> enumerator) {
-        auto t = MakeShared<_impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
+        auto t = MakeShared<__impl::AnonymousEnumerable<T>>(enumerator.template StaticCast<IEnumerator<T>>()).template StaticCast<IEnumerable<T>>();
     }
-    
-    namespace _impl{
+
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator;
         template <class T>
@@ -685,18 +714,18 @@ namespace Commons::Collections{
 
         template <class U>
         SharedPointer<IEnumerable<U>> Map(U (*trans)(const T&)){
-            auto ptr = new _impl::_IEnumerable_Transform_IEnumerator(*this, trans);
+            auto ptr = new __impl::_IEnumerable_Transform_IEnumerator(*this, trans);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<U>>();
         }
         SharedPointer<IEnumerable<T>> Filter(FunctionVariable(bool, filter, const T&)){
-            auto ptr = new _impl::_IEnumerable_Filter_IEnumerator(*this, filter);
+            auto ptr = new __impl::_IEnumerable_Filter_IEnumerator(*this, filter);
             auto next = SharedPointer(ptr);
             return next.template StaticCast<IEnumerable<T>>();
         }
     };
 
-    namespace _impl{
+    namespace __impl{
         template <class T, class U>
         class _IEnumerable_Transform_IEnumerator: public IEnumerator<U>{
         private:
@@ -706,10 +735,10 @@ namespace Commons::Collections{
             _IEnumerable_Transform_IEnumerator(IEnumerable<T> source, Function(U, T) trans): _source(source.GetEnumerator()), _trans(trans){
             }
 
-            virtual typename IEnumerator<U>::EnumeratorType Get() const override {
+            typename IEnumerator<U>::EnumeratorType Get() const override {
                 return MakeEnumerator(trans(*_source));
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 return _source.MoveNext();
             }
         };
@@ -722,14 +751,14 @@ namespace Commons::Collections{
         public:
             _IEnumerable_Filter_IEnumerator(IEnumerable<T> source, Function(bool, T) filter): _source(source.GetEnumerator()), _filter(filter){}
             
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 while (_source.MoveNext()) {
                     if (_filter(_source.Get()))
                         return true;
                 }
                 return false;
             }
-            virtual SharedPointer<T> Get() override
+            SharedPointer<T> Get() override
             {
                 return _source.Get();
             }
@@ -766,7 +795,7 @@ namespace Commons{
     #endif
     struct Range;
 
-    namespace _impl{
+    namespace __impl{
         #if ENABLECONCEPT
         template <Integral T>
         #else
@@ -782,10 +811,10 @@ namespace Commons{
             explicit Range_Enumerator(Range<T> r):_start(r.GetStart()), _end(r.GetEnd()), _current(r.GetStart() - (T)1){
 
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 return ++_current != _end;
             }
-            virtual SharedPointer<T> Get() const override {
+            SharedPointer<T> Get() const override {
                 return MakeShared<T>(_current);
             }
         };
@@ -806,8 +835,8 @@ namespace Commons{
         T GetStart() const { return _start; }
         T GetEnd() const { return _end; }
 
-        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
-            auto e = new ::Commons::_impl::Range_Enumerator(*this);
+        SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+            auto e = new ::Commons::__impl::Range_Enumerator(*this);
             auto ptr = SharedPointer(e);
             return ptr.template StaticCast<IEnumerator<T>>();
         }
@@ -860,7 +889,7 @@ namespace Commons::Collections {
         public:
             ListIterator(const List<T>* list): _cur(list->Root()), _root(list->Root()), _startState(true) {
             }
-            virtual bool MoveNext() override {
+            bool MoveNext() override {
                 if (!_cur)
                     return false;
                 if (_startState) {
@@ -870,7 +899,7 @@ namespace Commons::Collections {
                 _cur = _cur->Next();
                 return _cur != _root;
             }
-            virtual SharedPointer<T> Get() const override {
+            SharedPointer<T> Get() const override {
                 return MakeShared<T>(_cur->Data());
             }
         };
@@ -896,9 +925,12 @@ namespace Commons::Collections {
             ++_count;
         }
 
-        void Remove(SharedPointer<ListNode<T>> node) {
+        void RemoveNode(SharedPointer<ListNode<T>> node) {
+            if (!node->_prev.Pin() || !node->_next) {
+                node = node;
+            }
             node->_next->_prev = node->_prev.Pin();
-            node->_prev.Pin()->_prev = node->_next;
+            node->_prev.Pin()->_next = node->_next;
             if (node == _root) {
                 _root = _root->_next;
                 if (_count == 1) {
@@ -925,6 +957,7 @@ namespace Commons::Collections {
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
+                ++_count;
             }
             _root = newNode;
             return newNode;
@@ -932,16 +965,17 @@ namespace Commons::Collections {
         SharedPointer<ListNode<T>> AddToTail(T elem) {
             auto newNode = MakeShared<ListNode<T>>(elem);
             if (_root) {
-                AddAfter(newNode, _root);
+                AddAfter(newNode, _root->_prev.Pin());
             } else {
                 newNode->_next = newNode;
                 newNode->_prev = newNode;
+                _root = newNode;
+                ++_count;
             }
-            _root = newNode;
             return newNode;
         }
 
-        virtual void Add(T elem) override {
+        void Add(T elem) override {
             AddToTail(elem);
         }
 
@@ -959,7 +993,7 @@ namespace Commons::Collections {
             return nullptr;
         }
 
-        virtual bool Contains(T elem) const override {
+        bool Contains(T elem) const override {
             const auto compare = GetDefaultValueEqualityComparator<T>();
             return Find(elem, compare);
         }
@@ -967,7 +1001,7 @@ namespace Commons::Collections {
         void Remove(T elem, SharedPointer<IValueEqualityComparator<T>> equalityComparator) {
             if (!equalityComparator || !_root)
                 return;
-            const auto end = _root->_next;
+            const auto end = _root;
             auto node = _root;
             SharedPointer<ListNode<T>> deleteList[_count];
             int deleteIndex = 0;
@@ -977,31 +1011,31 @@ namespace Commons::Collections {
                 }
                 node = node->_next;
             } while (node != end);
-            deleteIndex = 0;
-            while (deleteList[deleteIndex++]) {
-                Remove(node);
+            int p = 0;
+            while (p < deleteIndex) {
+                RemoveNode(deleteList[p++]);
             }
         }
 
-        virtual void Remove(T elem) override {
+        void Remove(T elem) override {
             Remove(elem, GetDefaultValueEqualityComparator<T>());
         }
 
-        virtual ~List() override {
+        ~List() override {
             if (_root)
                 _root->_next = nullptr;
         }
 
-        virtual SharedPointer<IEnumerator<T>> GetEnumerator() const override {
+        SharedPointer<IEnumerator<T>> GetEnumerator() const override {
             auto enumerator = MakeShared<__impl::ListIterator<T>>(this);
             return enumerator.template StaticCast<IEnumerator<T>>();
         }
 
-        virtual int GetCount() const override {
+        int GetCount() const override {
             return _count;
         }
 
-        virtual void Clear() override {
+        void Clear() override {
             if (_root) 
                 _root->_next = nullptr;
             _root = nullptr;
@@ -1014,9 +1048,36 @@ namespace Commons::Collections {
         SharedPointer<ListNode<T>> GetTail() const {
             return _root ? _root->_prev.Pin() : nullptr;
         }
+
+//        void Print() const {
+//            cout<<"Traverse list count="<<_count<<endl;
+//            if (!_count)
+//                return;
+//            auto node = _root;
+//            do {
+//                cout << node << ", next="<<node->_next.Get()<<" "<<node->_next<<", prev="<<node->_prev.Pin().Get()<<" "<<node->_prev<<endl;
+//                node = node->_next;
+//            } while (node != _root);
+//        }
     };
 }
 
+static void ListTest(){
+    Commons::Collections::List<int> a;
+    for (int i=0;i<18;++i){
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+        a.Add(i);
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+    }
+    auto enumerator = a.GetEnumerator();
+    for (int i=15;i<20;++i) {
+        a.Remove(i);
+        syslog.messagef(LogLevel::INFO, "list %i", i);
+    }
+    while (enumerator->MoveNext()) {
+        syslog.messagef(LogLevel::INFO, "list %i", *enumerator->Get());
+    }
+}
 using namespace Commons;
 
 
