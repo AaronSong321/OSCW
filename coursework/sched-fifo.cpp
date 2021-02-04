@@ -1049,6 +1049,56 @@ namespace Commons::Collections {
             return _root ? _root->_prev.Pin() : nullptr;
         }
 
+        T* Get(int index) const {
+            if (index>0 && index<_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                To(0, index).ForEach(look);
+                return node.Get();
+            }
+            if (index<0 && -index>=-_count){
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                To(0, -index).ForEach(look);
+                return node.Get();
+            }
+            ShallThrow(std::out_of_range("List index out of range"));
+            return nullptr;
+        }
+        T& Set(int index, const T& item) {
+            if (index>0 && index<_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                To(0, index).ForEach(look);
+                auto prev = node->_prev;
+                RemoveNode(node);
+                if (prev == node->_prev) {
+                    AddToTail(item);
+                } else {
+                    AddAfter(prev, MakeShared<ListNode<T>>(item));
+                }
+                goto ret;
+            }
+            if (index<0 && -index>=-_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                To(0, index).ForEach(look);
+                auto prev = node->_prev;
+                RemoveNode(node);
+                if (prev == node->_prev) {
+                    AddToTail(item);
+                } else {
+                    AddAfter(prev, MakeShared<ListNode<T>>(item));
+                }
+                goto ret;
+            }
+            ShallThrow(std::out_of_range("List index out of range"));
+            ret: return item;
+        }
 //        void Print() const {
 //            cout<<"Traverse list count="<<_count<<endl;
 //            if (!_count)
@@ -1062,22 +1112,6 @@ namespace Commons::Collections {
     };
 }
 
-static void ListTest(){
-    Commons::Collections::List<int> a;
-    for (int i=0;i<18;++i){
-        syslog.messagef(LogLevel::INFO, "list %i", i);
-        a.Add(i);
-        syslog.messagef(LogLevel::INFO, "list %i", i);
-    }
-    auto enumerator = a.GetEnumerator();
-    for (int i=15;i<20;++i) {
-        a.Remove(i);
-        syslog.messagef(LogLevel::INFO, "list %i", i);
-    }
-    while (enumerator->MoveNext()) {
-        syslog.messagef(LogLevel::INFO, "list %i", *enumerator->Get());
-    }
-}
 using namespace Commons;
 
 
@@ -1089,7 +1123,6 @@ class FIFOScheduler : public SchedulingAlgorithm
 {
 public:
     FIFOScheduler() {
-        ListTest();
     }
 
 	/**

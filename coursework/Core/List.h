@@ -3,6 +3,7 @@
 #include "Comparator.h"
 #include <iostream>
 using namespace std;
+#include "IntRange.h"
 
 namespace Commons::Collections {
     template <class T>
@@ -190,6 +191,56 @@ namespace Commons::Collections {
         }
         SharedPointer<ListNode<T>> GetTail() const {
             return _root ? _root->_prev.Pin() : nullptr;
+        }
+        T* Get(int index) const {
+            if (index>0 && index<_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                To(0, index).ForEach(look);
+                return node.Get();
+            }
+            if (index<0 && -index>=-_count){
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                To(0, -index).ForEach(look);
+                return node.Get();
+            }
+            ShallThrow(std::out_of_range("List index out of range"));
+            return nullptr;
+        }
+        T& Set(int index, const T& item) {
+            if (index>0 && index<_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                To(0, index).ForEach(look);
+                auto prev = node->_prev;
+                RemoveNode(node);
+                if (prev == node->_prev) {
+                    AddToTail(item);
+                } else {
+                    AddAfter(prev, MakeShared<ListNode<T>>(item));
+                }
+                goto ret;
+            }
+            if (index<0 && -index>=-_count) {
+                auto node = _root;
+                auto f = &node;
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                To(0, index).ForEach(look);
+                auto prev = node->_prev;
+                RemoveNode(node);
+                if (prev == node->_prev) {
+                    AddToTail(item);
+                } else {
+                    AddAfter(prev, MakeShared<ListNode<T>>(item));
+                }
+                goto ret;
+            }
+            ShallThrow(std::out_of_range("List index out of range"));
+            ret: return item;
         }
 
 //        void Print() const {
