@@ -16,6 +16,10 @@ using namespace infos::kernel;
 using namespace infos::util;
 
 
+
+#define ShallThrow(expression) 
+#define ThrowIf0(argName) if (!argName) ShallThrow(#argName" is null!")
+
 namespace Commons {
 	template <class T> struct RemoveReference { typedef T Type; };
 	template <class T> struct RemoveReference<T&> { typedef T Type; };
@@ -1053,16 +1057,16 @@ namespace Commons::Collections {
             if (index>0 && index<_count) {
                 auto node = _root;
                 auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = (*f)->_next; });
                 To(0, index).ForEach(look);
-                return node.Get();
+                return node->Data();
             }
             if (index<0 && -index>=-_count){
                 auto node = _root;
                 auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = (*f)->_prev; });
                 To(0, -index).ForEach(look);
-                return node.Get();
+                return node->Data();
             }
             ShallThrow(std::out_of_range("List index out of range"));
             return nullptr;
@@ -1071,7 +1075,7 @@ namespace Commons::Collections {
             if (index>0 && index<_count) {
                 auto node = _root;
                 auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = (*f)->_next; });
                 To(0, index).ForEach(look);
                 auto prev = node->_prev;
                 RemoveNode(node);
@@ -1085,7 +1089,7 @@ namespace Commons::Collections {
             if (index<0 && -index>=-_count) {
                 auto node = _root;
                 auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = (*f)->_prev; });
                 To(0, index).ForEach(look);
                 auto prev = node->_prev;
                 RemoveNode(node);
@@ -1123,6 +1127,7 @@ class FIFOScheduler : public SchedulingAlgorithm
 {
 public:
     FIFOScheduler() {
+
     }
 
 	/**
@@ -1138,8 +1143,11 @@ public:
 	 */
 	void add_to_runqueue(SchedulingEntity& entity) override
 	{
+        // syslog.messagef(LogLevel::INFO, "&thread=%p", (*queue.Root()).Data());
         UniqueIRQLock _l;
-        runqueue.AddToTail(&entity);
+        queue.AddToTail(&entity);
+        // runqueue.enqueue(&entity);
+        syslog.messagef(LogLevel::INFO, "add entity %p", &entity);
 	}
 
 	/**
@@ -1148,8 +1156,11 @@ public:
 	 */
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
+        // syslog.messagef(LogLevel::INFO, "&thread=%p", (*queue.Root()).Data());
         UniqueIRQLock _l;
-        runqueue.Remove(&entity);
+        queue.Remove(&entity);
+        // runqueue.remove(&entity);
+        syslog.messagef(LogLevel::INFO, "remove entity %p with time %ld", &entity, (long)entity.cpu_runtime().count());
 	}
 
 	/**
@@ -1159,14 +1170,30 @@ public:
 	 */
 	SchedulingEntity *pick_next_entity() override
 	{
-        if (!runqueue.GetCount())
+        if (!queue.GetCount())
             return nullptr;
-        return runqueue.GetHead()->Data();
+        // if (runqueue.count() == 0) return NULL;
+		// if (runqueue.count() == 1) return runqueue.first();
+		
+		// SchedulingEntity::EntityRuntime min_runtime = 0;
+		// SchedulingEntity *min_runtime_entity = NULL;
+		// for (const auto& entity : runqueue) {
+		// 	if (min_runtime_entity == NULL || entity->cpu_runtime() < min_runtime) {
+		// 		min_runtime_entity = entity;
+		// 		min_runtime = entity->cpu_runtime();
+		// 	}
+		// }
+        return *queue.Get(0);
+        const auto head = (*queue.Root()).Data();
+        return head;
+        // syslog.messagef(LogLevel::INFO, "pick &thread=%p, minRuntimeEntity=%p", head, min_runtime_entity);
+		// return min_runtime_entity;
 	}
 
 private:
 	// A list containing the current runqueue.
-	Commons::Collections::List<SchedulingEntity *> runqueue;
+	Commons::Collections::List<SchedulingEntity*> queue;
+    infos::util::List<SchedulingEntity*> runqueue;
 
 };
 

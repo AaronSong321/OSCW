@@ -11,6 +11,15 @@
         "istream": "cpp",
         "ostream": "cpp",
         "sstream": "cpp",
-        "streambuf": "cpp"
+        "streambuf": "cpp",
+        "cctype": "cpp",
+        "clocale": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp",
+        "csignal": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "cwctype": "cpp"
     }
 }
