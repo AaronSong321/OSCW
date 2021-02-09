@@ -158,7 +158,7 @@ namespace Commons {
 #ifdef __clang__
     __is_function(T)
 #else
-    !(IsReference<TKey>::Value || IsConst<const TKey>::Value)
+    !(IsReference<T>::Value || IsConst<const T>::Value)
 #endif
     > {};
 

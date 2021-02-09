@@ -9,7 +9,7 @@
 /**
  * Used when such exit doesn't really exist
  */
-#define DummyThrow() throw 0;
+#define DummyThrow() //throw 0
 #define ShallThrow(expression) DummyThrow()
 
 #define OverloadComparisonOperatorsDeclaration1(typeName, typeArg1) \

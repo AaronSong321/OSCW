@@ -1,26 +1,5 @@
 
 
-
-
-
-
-void Test1();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };
@@ -1898,21 +1877,3 @@ namespace Commons::Collections {
         }
     };
 }
-
-
-using namespace Commons;
-using namespace Commons::Collections;
-
-
-
-void Test1() {
-    auto q = MakeShared<PriorityQueue<int>>(GetDefaultValueComparator<int>());
-    for (int i=0; i<100; ++i)
-        q->Enqueue(i);
-
-}
-
-int main(int argc, char** argv) {
-    Test1();
-}
-
