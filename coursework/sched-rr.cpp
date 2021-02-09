@@ -1909,7 +1909,7 @@ public:
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
         UniqueIRQLock _l;
-        queue.Dequeue(&entity);
+        queue.Remove(&entity);
 	}
 
 	/**
