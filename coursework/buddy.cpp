@@ -1061,7 +1061,7 @@ namespace Commons{
                     return --_current > _end;
             }
             SharedPointer<T> Get() const noexcept override {
-                return MakeShared<T>(_current);
+                return MakeShared<T>(const_cast<Range_Enumerator<T>*>(this)->_current);
             }
         };
     }

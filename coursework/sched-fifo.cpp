@@ -1,7 +1,6 @@
 
 
 
-
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };

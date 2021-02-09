@@ -1,5 +1,6 @@
 
 
+
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };
@@ -1060,7 +1061,7 @@ namespace Commons{
                     return --_current > _end;
             }
             SharedPointer<T> Get() const noexcept override {
-                return MakeShared<T>(_current);
+                return MakeShared<T>(const_cast<Range_Enumerator<T>*>(this)->_current);
             }
         };
     }
