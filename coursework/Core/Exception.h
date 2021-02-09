@@ -5,8 +5,12 @@
 #ifndef CPP_EXCEPTION_H
 #define CPP_EXCEPTION_H
 
-#define ShallThrow(expression) 
-#define ThrowIf0(argName) if (!argName) ShallThrow(#argName" is null!")
+#define ThrowIf0(argName) if (!argName) throw #argName" is null!"
+/**
+ * Used when such exit doesn't really exist
+ */
+#define DummyThrow() throw 0;
+#define ShallThrow(expression) DummyThrow()
 
 #define OverloadComparisonOperatorsDeclaration1(typeName, typeArg1) \
 template <class typeArg1> \

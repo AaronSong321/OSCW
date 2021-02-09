@@ -18,8 +18,9 @@ namespace Commons::Collections {
         friend class List<T>;
 
     public:
-        T Data() const { return _data; }
-        SharedPointer<ListNode<T>> Next() const { return _next; }
+        inline T Data() const { return _data; }
+        inline SharedPointer<ListNode<T>> Prev() const { return _prev.Pin(); }
+        inline SharedPointer<ListNode<T>> Next() const { return _next; }
         ListNode(T data): _data(data), _next(nullptr), _prev(nullptr) {
         }
     };
@@ -33,7 +34,7 @@ namespace Commons::Collections {
         public:
             ListIterator(const List<T>* list): _cur(list->Root()), _root(list->Root()), _startState(true) {
             }
-            bool MoveNext() override {
+            bool MoveNext() noexcept override {
                 if (!_cur)
                     return false;
                 if (_startState) {
@@ -43,7 +44,7 @@ namespace Commons::Collections {
                 _cur = _cur->Next();
                 return _cur != _root;
             }
-            SharedPointer<T> Get() const override {
+            SharedPointer<T> Get() const noexcept override {
                 return MakeShared<T>(_cur->Data());
             }
         };
@@ -192,33 +193,30 @@ namespace Commons::Collections {
         SharedPointer<ListNode<T>> GetTail() const {
             return _root ? _root->_prev.Pin() : nullptr;
         }
-        T* Get(int index) const {
-            if (index>0 && index<_count) {
+        T Get(int index) const {
+            if (index>=0 && index<_count) {
                 auto node = _root;
-                auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                MacroDeclareLambdaFunctor1(look, [&node], SharedPointer<int>, void, { node = node->_next; });
                 To(0, index).ForEach(look);
-                return node.Get();
+                return node->Data();
             }
             if (index<0 && -index>=-_count){
                 auto node = _root;
-                auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                MacroDeclareLambdaFunctor1(look, [&node], SharedPointer<int>, void, { node = node->Prev(); });
                 To(0, -index).ForEach(look);
-                return node.Get();
+                return node->Data();
             }
             ShallThrow(std::out_of_range("List index out of range"));
-            return nullptr;
+            DummyThrow();
         }
-        T& Set(int index, const T& item) {
-            if (index>0 && index<_count) {
+        const T& Set(int index, const T& item) {
+            if (index>=0 && index<_count) {
                 auto node = _root;
-                auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_next; });
+                MacroDeclareLambdaFunctor1(look, [&node], SharedPointer<int>, void, { node = node->_next; });
                 To(0, index).ForEach(look);
-                auto prev = node->_prev;
+                auto prev = node->Prev();
                 RemoveNode(node);
-                if (prev == node->_prev) {
+                if (prev == node->Prev()) {
                     AddToTail(item);
                 } else {
                     AddAfter(prev, MakeShared<ListNode<T>>(item));
@@ -227,12 +225,11 @@ namespace Commons::Collections {
             }
             if (index<0 && -index>=-_count) {
                 auto node = _root;
-                auto f = &node;
-                MacroDeclareLambdaFunctor1(look, [f], SharedPointer<int>, void, { *f = f->_prev; });
+                MacroDeclareLambdaFunctor1(look, [&node], SharedPointer<int>, void, { node = node->Prev(); });
                 To(0, index).ForEach(look);
-                auto prev = node->_prev;
+                auto prev = node->Prev();
                 RemoveNode(node);
-                if (prev == node->_prev) {
+                if (prev == node->Prev()) {
                     AddToTail(item);
                 } else {
                     AddAfter(prev, MakeShared<ListNode<T>>(item));
@@ -249,7 +246,7 @@ namespace Commons::Collections {
 //                return;
 //            auto node = _root;
 //            do {
-//                cout << node << ", next="<<node->_next.Get()<<" "<<node->_next<<", prev="<<node->_prev.Pin().Get()<<" "<<node->_prev<<endl;
+//                cout << node << ", next="<<node->_next.Get()<<" "<<node->_next<<", prev="<<node->_prev.Pin().GetRawPointer()<<" "<<node->_prev<<endl;
 //                node = node->_next;
 //            } while (node != _root);
 //        }

@@ -69,17 +69,17 @@ namespace Commons{
 //            }
 //        };
 //
-//        template <class T, class Deleter>
+//        template <class TKey, class Deleter>
 //        struct SharedCountBaseImplementation: public SharedCountBase {
 //        private:
-//            T _pointer;
+//            TKey _pointer;
 //
 //        public:
 //            SharedCountBaseImplementation(const SharedCountBaseImplementation&);
 //            SharedCountBaseImplementation& operator=(const SharedCountBaseImplementation&);
 //
 //        public:
-//            SharedCountBaseImplementation(T ptr): _pointer(ptr) {
+//            SharedCountBaseImplementation(TKey ptr): _pointer(ptr) {
 //            }
 //            void Dispose() noexcept override {
 //                _deleter(_pointer);
@@ -95,9 +95,9 @@ namespace Commons{
 //
 //        public:
 //            SharedCount(): _pi(nullptr) {}
-//            template <class T> SharedCount(T ptr): _pi(nullptr) {
+//            template <class TKey> SharedCount(TKey ptr): _pi(nullptr) {
 //                try {
-//                    _pi = new SharedCountBaseImplementation<T>(ptr);
+//                    _pi = new SharedCountBaseImplementation<TKey>(ptr);
 //                }
 //                catch (...) {
 //                    throw;
@@ -243,7 +243,9 @@ namespace Commons{
             Hold();
         }
         SharedPointer(SharedPointer<T>&& p) noexcept: _data(p._data), _sharedCount(p._sharedCount), _weakCount(p._weakCount) {
-            Hold();
+            p._data = nullptr;
+            p._sharedCount = nullptr;
+            p._weakCount = nullptr;
         }
         SharedPointer(): _data(0), _sharedCount(nullptr), _weakCount(nullptr) {
         }
@@ -293,8 +295,8 @@ namespace Commons{
         operator bool() const {
             return _data != 0;
         }
-        T* Get() const { return _data; }
-//        friend ostream& operator<<(ostream& f, const SharedPointer<T>& obj) {
+        T* GetRawPointer() const { return _data; }
+//        friend ostream& operator<<(ostream& f, const SharedPointer<TKey>& obj) {
 //            f << "(data=" << obj._data;
 //            f<<", shared count="<<obj._sharedCount;
 //            if (obj._sharedCount)
@@ -340,28 +342,34 @@ namespace Commons{
         auto data = dynamic_cast<TBase*>(_data);
         return ConstructPointerAtType(data);
     }
-     template <class T>
-     template <class TBase>
-     SharedPointer<TBase> SharedPointer<T>::ConstCast() {
-         auto data = const_cast<TBase*>(_data);
-         return ConstructPointerAtType(data);
-     }
-     template <class T>
-     template <class TBase>
-     SharedPointer<TBase> SharedPointer<T>::ReinterpretCast() {
-         auto data = reinterpret_cast<TBase*>(_data);
-         return ConstructPointerAtType(data);
-     }
+    template <class T>
+    template <class TBase>
+    SharedPointer<TBase> SharedPointer<T>::ConstCast() {
+        auto data = const_cast<TBase*>(_data);
+        return ConstructPointerAtType(data);
+    }
+    template <class T>
+    template <class TBase>
+    SharedPointer<TBase> SharedPointer<T>::ReinterpretCast() {
+        auto data = reinterpret_cast<TBase*>(_data);
+        return ConstructPointerAtType(data);
+    }
 
+    template <class T>
+    class ManagedObject;
     template<class T, class... ArgTypes>
     inline SharedPointer<T> MakeShared(ArgTypes&&... objects){
         auto p = new T(Forward<ArgTypes>(objects)...);
-        return SharedPointer<T>(p);
+        SharedPointer<T> sp(p);
+        if constexpr (IsBaseOf<ManagedObject<T>, T>::Value) {
+            dynamic_cast<ManagedObject<T>*>(p)->Feed(sp);
+        }
+        return sp;
     }
 
     template<class T, class U>
     bool operator==(const SharedPointer<T> lhs, const SharedPointer<U> rhs){
-        return lhs.Get() == rhs.Get();
+        return lhs.GetRawPointer() == rhs.GetRawPointer();
     }
     template<class T, class U>
     bool operator!=(const SharedPointer<T> lhs, const SharedPointer<U> rhs){
@@ -417,18 +425,21 @@ namespace Commons{
             _weakCount = nullptr;
             return *this;
         }
+    };
 
-//        friend ostream& operator<<(ostream& f, const WeakPointer<T>& obj) {
-//            f << "(data=" << obj._data;
-//            f<<", shared count="<<obj._sharedCount;
-//            if (obj._sharedCount)
-//                f<<" "<<*obj._sharedCount;
-//            f<<", weak count="<<obj._weakCount;
-//            if (obj._weakCount)
-//                f<<" "<<*obj._weakCount;
-//            f<<")";
-//            return f;
-//        }
+    template <class T>
+    class ManagedObject{
+    private:
+        WeakPointer<T> _this;
+    public:
+        ManagedObject(): _this(nullptr) { }
+
+        void Feed(SharedPointer<T> a) {
+            _this = a;
+        }
+        SharedPointer<T> SharedPointerToThis() const {
+            return _this.Pin();
+        }
     };
 }
 

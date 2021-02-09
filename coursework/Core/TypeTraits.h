@@ -60,20 +60,43 @@ namespace Commons {
              (IsVoid<From>::Value && IsVoid<To>::Value))
     > {};
 
+
     template <class T> struct IsIntegral: public IntegralConstant<bool, CharTraits<T>::Value>{};
     template <> struct IsIntegral<int>: public TrueType{};
     template <> struct IsIntegral<long long>: public TrueType{};
     template <> struct IsIntegral<long>: public TrueType{};
     template <> struct IsIntegral<short>: public TrueType{};
+    template <> struct IsIntegral<bool>: public TrueType {};
+//    template <> struct IsIntegral<ptrdiff_t>: public TrueType{};
+//    template <> struct IsIntegral<size_t>: public TrueType{};
+//    template <> struct IsIntegral<max_align_t>: public TrueType{};
+//    template <> struct IsIntegral<byte>: public TrueType{};
+    template <> struct IsIntegral<unsigned int>: public TrueType{};
+    template <> struct IsIntegral<unsigned long long>: public TrueType{};
+    template <> struct IsIntegral<unsigned long>: public TrueType{};
+    template <> struct IsIntegral<unsigned short>: public TrueType{};
+
+    template <class T> struct IsFloat: public FalseType {};
+    template <> struct IsFloat<float>: public TrueType {};
+    template <> struct IsFloat<double>: public TrueType {};
+    template <> struct IsFloat<long double>: public TrueType {};
+
+    template <class T> struct IsArithmetic: public IntegralConstant<bool, IsIntegral<T>::Value && IsFloat<T>::Value> {};
+
+    template <class T> struct IsFundamental: public IntegralConstant<bool, IsArithmetic<T>::Value> {};
+    template <> struct IsFundamental<void>: public TrueType {};
+    template <> struct IsFundamental<decltype(nullptr)>: public TrueType {};
 
     /**
      * Used to mark a type as ValueType
      */
     template <class T> struct IsValueType: public FalseType{};
-#define DeclValueType(T) template <> struct IsValueType<T>: public TrueType {};
+#define DeclValueType(T) namespace Commons { template <> struct IsValueType<T>: public TrueType {}; }
 
     template <class T>
-    struct IsUnion: public FalseType{};
+    struct IsUnion: public FalseType {};
+    template <class T>
+    struct IsEnum: public FalseType {};
 
     namespace __impl{
         template <class T>
@@ -82,7 +105,9 @@ namespace Commons {
         FalseType _Test_IsClass_Helper(...);
     }
     template <class T>
-    struct IsClass:decltype(__impl::_Test_IsClass_Helper<T>((void*)0)) {};
+    struct IsClass: decltype(__impl::_Test_IsClass_Helper<T>((void*)0)) {};
+    template <class T>
+    struct IsClass2: IntegralConstant<bool, !IsUnion<T>::Value&&!IsEnum<T>::Value&&!IsFundamental<T>::Value> {};
 
     namespace __impl{
         template <class B>
@@ -95,7 +120,9 @@ namespace Commons {
         auto _TestPreIsBaseOf(int)-> decltype(_TestPrePtrConvertible<Base>(static_cast<Derived*>(nullptr)));
     }
     template <class Base, class Derived>
-    struct IsBaseOf: IntegralConstant<bool, IsClass<Base>::Value && IsClass<Derived>::Value && decltype(__impl::_TestPreIsBaseOf<Base, Derived>(0))::Value>{};
+    struct IsBaseOf: IntegralConstant<bool, IsClass2<Base>::Value && IsClass2<Derived>::Value && decltype(__impl::_TestPreIsBaseOf<Base, Derived>(0))::Value>{};
+    template <class Base, class Derived>
+    inline constexpr bool IsBaseOfValue = IsBaseOf<RemoveCVType<Base>, RemoveCVType<Derived>>::Value;
     
     template <bool b, class T = void>
     struct EnableIf {};
@@ -131,7 +158,7 @@ namespace Commons {
 #ifdef __clang__
     __is_function(T)
 #else
-    !(IsReference<T>::Value || IsConst<const T>::Value)
+    !(IsReference<TKey>::Value || IsConst<const TKey>::Value)
 #endif
     > {};
 

@@ -25,6 +25,10 @@ namespace Commons{
     public:
         virtual Ret Invoke(Args...) const = 0;
         virtual ~Functor() { }
+
+        Ret operator()(Args&&... args) const {
+            return Invoke(args...);
+        }
     };
 
     /**
@@ -34,15 +38,14 @@ namespace Commons{
      * @tparam ArgTypes
      */
     template <class RetType, class... ArgTypes>
-    struct Fun : public Functor<RetType(ArgTypes...)> {
+    struct Fun {};
+    template <class RetType, class... ArgTypes>
+    struct Fun<RetType(ArgTypes...)>: public Functor<RetType(ArgTypes...)> {
     private:
         Function(RetType, ArgTypes...) _fpointer;
 
     public:
         Fun(Function(RetType, ArgTypes...) f): _fpointer(f){}
-        RetType operator()(ArgTypes&&... args) const {
-            return _fpointer(Forward<ArgTypes>(args)...);
-        }
         // bool operator==(const Fun<RetType, ArgTypes...>&) const = default;
         bool operator==(const Fun<RetType, ArgTypes...>& other) const{
             return _fpointer == other._fpointer;
@@ -85,7 +88,7 @@ namespace Commons{
         auto name = MakeShared<Capture<decltype(__lambda_##name), Ret>>(__lambda_##name).template StaticCast<Functor<Ret()>>()
 #define MacroDeclareLambdaFunctor1(name, capture, Arg1, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
         auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1)>>()
-#define MacroDeclareLambdaFunctor2(name, capture, Arg1, Arg2, Ret, block) auto __lambda_##name = capture(Arg1 arg1) -> Ret block; \
+#define MacroDeclareLambdaFunctor2(name, capture, Arg1, Arg2, Ret, block) auto __lambda_##name = capture(Arg1 arg1, Arg2 arg2) -> Ret block; \
         auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2)>>()
 #define MacroDeclareLambdaFunctor3(name, capture, Arg1, Arg2, Arg3, Ret, block) auto __lambda_##name = capture(Arg1 arg1, Arg2 arg2, Arg3 arg3) -> Ret block; \
         auto name = MakeShared<Capture<decltype(__lambda_##name), Ret, Arg1, Arg2, Arg3>>(__lambda_##name).template StaticCast<Functor<Ret(Arg1, Arg2, Arg3)>>()
