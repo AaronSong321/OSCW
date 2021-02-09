@@ -1,5 +1,4 @@
 
-
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };
@@ -192,7 +191,7 @@ namespace Commons {
 #ifdef __clang__
     __is_function(T)
 #else
-    !(IsReference<TKey>::Value || IsConst<const TKey>::Value)
+    !(IsReference<T>::Value || IsConst<const T>::Value)
 #endif
     > {};
 
@@ -279,7 +278,7 @@ namespace Commons {
 /**
  * Used when such exit doesn't really exist
  */
-#define DummyThrow() throw 0;
+#define DummyThrow() //throw 0
 #define ShallThrow(expression) DummyThrow()
 
 #define OverloadComparisonOperatorsDeclaration1(typeName, typeArg1) \
@@ -1877,3 +1876,9 @@ namespace Commons::Collections {
         }
     };
 }
+
+
+using namespace Commons;
+using namespace Commons::Collections;
+
+
