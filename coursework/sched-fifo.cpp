@@ -1,6 +1,7 @@
 
 
 
+
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };
@@ -1061,7 +1062,7 @@ namespace Commons{
                     return --_current > _end;
             }
             SharedPointer<T> Get() const noexcept override {
-                return MakeShared<T>(_current);
+                return MakeShared<T>(const_cast<Range_Enumerator<T>*>(this)->_current);
             }
         };
     }
@@ -1871,6 +1872,8 @@ using namespace infos::kernel;
 using namespace infos::util;
 
 
+
+
 /**
  * A FIFO scheduling algorithm
  */
@@ -1894,11 +1897,8 @@ public:
 	 */
 	void add_to_runqueue(SchedulingEntity& entity) override
 	{
-        // syslog.messagef(LogLevel::INFO, "&thread=%p", (*queue.Root()).Data());
         UniqueIRQLock _l;
         queue.AddToTail(&entity);
-        // runqueue.enqueue(&entity);
-        syslog.messagef(LogLevel::INFO, "add entity %p", &entity);
 	}
 
 	/**
@@ -1907,11 +1907,8 @@ public:
 	 */
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
-        // syslog.messagef(LogLevel::INFO, "&thread=%p", (*queue.Root()).Data());
         UniqueIRQLock _l;
         queue.Remove(&entity);
-        // runqueue.remove(&entity);
-        syslog.messagef(LogLevel::INFO, "remove entity %p with time %ld", &entity, (long)entity.cpu_runtime().count());
 	}
 
 	/**
@@ -1923,28 +1920,12 @@ public:
 	{
         if (!queue.GetCount())
             return nullptr;
-        // if (runqueue.count() == 0) return NULL;
-		// if (runqueue.count() == 1) return runqueue.first();
-		
-		// SchedulingEntity::EntityRuntime min_runtime = 0;
-		// SchedulingEntity *min_runtime_entity = NULL;
-		// for (const auto& entity : runqueue) {
-		// 	if (min_runtime_entity == NULL || entity->cpu_runtime() < min_runtime) {
-		// 		min_runtime_entity = entity;
-		// 		min_runtime = entity->cpu_runtime();
-		// 	}
-		// }
         return queue.Get(0);
-        // const auto head = (*queue.Root()).Data();
-        // return head;
-        // syslog.messagef(LogLevel::INFO, "pick &thread=%p, minRuntimeEntity=%p", head, min_runtime_entity);
-		// return min_runtime_entity;
 	}
 
 private:
 	// A list containing the current runqueue.
 	Commons::Collections::List<SchedulingEntity*> queue;
-    infos::util::List<SchedulingEntity*> runqueue;
 
 };
 

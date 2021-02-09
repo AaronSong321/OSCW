@@ -1,6 +1,5 @@
 
 
-
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
     template<class T> struct RemoveReference<T&> { typedef T Type; };
@@ -1888,7 +1887,8 @@ public:
 	 */
 	void add_to_runqueue(SchedulingEntity& entity) override
 	{
-		not_implemented();
+        UniqueIRQLock _l;
+        queue.AddToTail(&entity);
 	}
 
 	/**
@@ -1897,7 +1897,8 @@ public:
 	 */
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
-		not_implemented();
+        UniqueIRQLock _l;
+        queue.Remove(&entity);
 	}
 
 	/**
@@ -1907,12 +1908,15 @@ public:
 	 */
 	SchedulingEntity *pick_next_entity() override
 	{
-		not_implemented();
+        if (!queue.GetCount())
+            return nullptr;
+        auto p = queue.Get(0);
+        
 	}
 
 private:
 	// A list containing the current runqueue.
-	Collections::List<SchedulingEntity *> runqueue;
+	Commons::Collections::List<SchedulingEntity*> queue;
 };
 
 /* --- DO NOT CHANGE ANYTHING BELOW THIS LINE --- */
