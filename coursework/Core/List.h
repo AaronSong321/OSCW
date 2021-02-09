@@ -253,6 +253,15 @@ namespace Commons::Collections {
             return _root->Data();
         }
 
+        /**
+         * Make the original front the new tail, and return its value
+         * @return
+         */
+        T Skew() {
+            const auto& g = _root->Data();
+            _root = _root->_next;
+            return g;
+        }
 //        void Print() const {
 //            cout<<"Traverse list count="<<_count<<endl;
 //            if (!_count)

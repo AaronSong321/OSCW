@@ -1368,6 +1368,16 @@ namespace Commons::Collections {
             return _root->Data();
         }
 
+        /**
+         * Make the original front the new tail, and return its value
+         * @return
+         */
+        T Skew() {
+            const auto& g = _root->Data();
+            _root = _root->_next;
+            return g;
+        }
+
 
     };
 }
@@ -1889,7 +1899,7 @@ public:
 	void add_to_runqueue(SchedulingEntity& entity) override
 	{
         UniqueIRQLock _l;
-        queue.AddToTail(&entity);
+        queue.Enqueue(&entity);
 	}
 
 	/**
@@ -1899,7 +1909,7 @@ public:
 	void remove_from_runqueue(SchedulingEntity& entity) override
 	{
         UniqueIRQLock _l;
-        queue.Remove(&entity);
+        queue.Dequeue(&entity);
 	}
 
 	/**
@@ -1911,8 +1921,7 @@ public:
 	{
         if (!queue.GetCount())
             return nullptr;
-        auto p = queue.Get(0);
-        
+        return queue.Skew();
 	}
 
 private:
