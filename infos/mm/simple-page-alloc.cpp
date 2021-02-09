@@ -31,6 +31,7 @@ private:
 public:
 	bool init(PageDescriptor* page_descriptors, uint64_t nr_page_descriptors) override
 	{
+		mm_log.messagef(LogLevel::DEBUG, "Simple page Allocator Initialising pd=%p, nr=0x%lx", page_descriptors, nr_page_descriptors);
 		mm_log.messagef(LogLevel::DEBUG, "Simple Page Allocator online");
 		_pgd_base = page_descriptors;
 		_nr_pgds = nr_page_descriptors;
