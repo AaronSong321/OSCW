@@ -226,7 +226,15 @@ public:
 		
 		// TODO: Initialise the free area linked list for the maximum order
 		// to initialise the allocation algorithm.
-		
+		int order = MAX_ORDER;
+		auto page = page_descriptors;
+		auto lastPageOfThisOrder = page;
+		auto pageLeft = nr_page_descriptors;
+		int currentPageSize = 1 << order;
+		while (pageLeft) {
+			
+		}
+
 		not_implemented();
 	}
 
