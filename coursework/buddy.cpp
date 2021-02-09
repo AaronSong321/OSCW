@@ -20,6 +20,10 @@ using namespace infos::util;
 
 #define MAX_ORDER	17
 
+static inline bool IsAvailable(PageDescriptor* des) {
+    return des->->type==PageDescriptorType::AVAILABLE;
+}
+
 /**
  * A buddy page allocation algorithm.
  */
@@ -145,9 +149,13 @@ private:
 		
 		// Make sure the block_pointer is correctly aligned.
 		assert(is_correct_alignment_for_order(*block_pointer, source_order));
-		
-		// TODO: Implement this function
-		return nullptr;		
+		assert(source_order>0);
+
+		auto sourceOrderMinus1 = source_order-1;
+		remove_block(*block_pointer, source_order);
+		insert_block(*block_pointer, sourceOrderMinus1);
+		insert_block(buddy_of(*block_pointer, sourceOrderMinus1), sourceOrderMinus1);
+		return *block_pointer;
 	}
 	
 	/**
@@ -164,9 +172,27 @@ private:
 		
 		// Make sure the area_pointer is correctly aligned.
 		assert(is_correct_alignment_for_order(*block_pointer, source_order));
+        assert(source_order < MAX_ORDER);
 
-		// TODO: Implement this function
-		return nullptr;		
+        auto sourceOrderPlus1 = source_order+1;
+        remove_block(*block_pointer, source_order);
+        remove_block(buddy_of(*block_pointer, source_order)), source_order);
+        insert_block(*block_pointer, sourceOrderPlus1);
+        return block_pointer;
+	}
+
+	void MergeWithRight(PageDescriptor* ha, int order) {
+	    if (is_correct_alignment_for_order(ha, order+1) && order < MAX_ORDER && IsAvailable(ha) && IsAvailable(buddy_of(ha, order))) {
+	        // Hope the compiler can eliminate this tail recursive call
+	        merge_block(ha, order+1);
+            MergeWithRight(ha, order+1);
+	    }
+	}
+	void SplitToLeft(PageDescriptor** ha, int order) {
+	    if (order > 0 && IsAvailable(ha)) {
+	        split_block(ha, order);
+	        SplitToLeft(ha, order-1);
+	    }
 	}
 	
 public:
@@ -188,7 +214,12 @@ public:
 	 */
 	PageDescriptor *alloc_pages(int order) override
 	{
-		not_implemented();
+        if (_free_areas[order]) {
+            auto k = _free_areas[order];
+            _free_areas[order] = k->next_free;
+            return k;
+        }
+        return nullptr;
 	}
 	
 	/**
@@ -202,8 +233,9 @@ public:
 		// for the order on which it is being freed, for example, it is
 		// illegal to free page 1 in order-1.
 		assert(is_correct_alignment_for_order(pgd, order));
-		
-		not_implemented();
+
+		pgd->type = PageDescriptor::AVAILABLE;
+		TryMergeWithRight(pgd, order);
 	}
 	
 	/**
@@ -213,7 +245,9 @@ public:
 	 */
 	bool reserve_page(PageDescriptor *pgd)
 	{
-		not_implemented();
+	    if (!IsAvailable(pgd))
+	        return false;
+	    SplitToLeft(pgd);
 	}
 	
 	/**
@@ -226,16 +260,28 @@ public:
 		
 		// TODO: Initialise the free area linked list for the maximum order
 		// to initialise the allocation algorithm.
-		int order = MAX_ORDER;
+        auto order = MAX_ORDER;
 		auto page = page_descriptors;
-		auto lastPageOfThisOrder = page;
 		auto pageLeft = nr_page_descriptors;
-		int currentPageSize = 1 << order;
+        auto currentPageSize = 1 << order;
 		while (pageLeft) {
-			
+            decltype(page) lastPageOfThisOrder = nullptr;
+			while (pageLeft >= currentPageSize) {
+			    pageLeft -= currentPageSize;
+			    page += currentPageSize;
+			    if (!lastPageOfThisOrder) {
+			        lastPageOfThisOrder->next_free = page;
+			    }
+			    else {
+			        _free_areas[order] = page;
+			    }
+                lastPageOfThisOrder = page;
+			}
+			lastPageOfThisOrder->next_free = nullptr;
+			--order;
+			currentPageSize = currentPageSize << 1;
 		}
-
-		not_implemented();
+		return true;
 	}
 
 	/**

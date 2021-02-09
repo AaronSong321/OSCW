@@ -167,7 +167,7 @@
 //                _iter = _iter->_right;
 //                return true;
 //            }
-//            SharedPointer<FibonacciNode<TKey>> Get() const noexcept override {
+//            SharedPointer<FibonacciNode<TKey>> Current() const noexcept override {
 //                return _iter;
 //            }
 //        };
@@ -715,7 +715,7 @@ namespace Commons::Collections {
             return MakeShared<__impl::_FibHeapTraverse<TKey, TValue>>(this).template StaticCast<IEnumerator<Pair<TKey, TValue>>>();
         }
 
-        int GetCount() const override {
+        int Count() const override {
             return num;
         }
 
@@ -804,8 +804,8 @@ namespace Commons::Collections {
                 }
                 return em->MoveNext();
             }
-            RetType Get() const noexcept override {
-                return em->Get();
+            RetType Current() const noexcept override {
+                return em->Current();
             }
         };
     }

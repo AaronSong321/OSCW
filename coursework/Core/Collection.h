@@ -15,7 +15,7 @@ namespace Commons::Collections{
     class IEnumerator{
     public:
         typedef SharedPointer<T> EnumeratorType;
-        virtual EnumeratorType Get() const noexcept = 0;
+        virtual EnumeratorType Current() const noexcept = 0;
         virtual bool MoveNext() noexcept = 0;
         virtual ~IEnumerator() noexcept {}
 
@@ -23,8 +23,8 @@ namespace Commons::Collections{
         static EnumeratorType MakeEnumerator(ArgTypes&&... args){
             return MakeShared<T>(Forward<ArgTypes>(args)...);
         }
-        SharedPointer<T> operator->() const { return Get(); }
-        T& operator*() const { return *Get(); }
+        SharedPointer<T> operator->() const { return Current(); }
+        T& operator*() const { return *Current(); }
     };
 
     #if ENABLECONCEPT
@@ -137,7 +137,7 @@ namespace Commons::Collections{
         void ForEach(SharedPointer<Functor<void(SharedPointer<T>)>> func) const {
             auto iterator = GetEnumerator();
             while (iterator->MoveNext()){
-                func->Invoke(iterator->Get());
+                func->Invoke(iterator->Current());
             }
         }
         template <class U>
@@ -176,8 +176,8 @@ namespace Commons::Collections{
             _IEnumerable_Transform_IEnumerator(const IEnumerable<T>* source, SharedPointer<Functor<U(SharedPointer<T>)>> trans): _source(source->GetEnumerator()), _trans(trans){
             }
 
-            typename IEnumerator<U>::EnumeratorType Get() const noexcept override {
-                return MakeShared<U>(_trans->Invoke(_source->Get()));
+            typename IEnumerator<U>::EnumeratorType Current() const noexcept override {
+                return MakeShared<U>(_trans->Invoke(_source->Current()));
             }
             bool MoveNext() noexcept override {
                 return _source->MoveNext();
@@ -194,14 +194,14 @@ namespace Commons::Collections{
             
             bool MoveNext() noexcept override {
                 while (_source->MoveNext()) {
-                    if (_filter(_source->Get()))
+                    if (_filter(_source->Current()))
                         return true;
                 }
                 return false;
             }
-            SharedPointer<T> Get() const noexcept override
+            SharedPointer<T> Current() const noexcept override
             {
-                return _source->Get();
+                return _source->Current();
             }
         };
 
@@ -220,8 +220,8 @@ namespace Commons::Collections{
             bool MoveNext() noexcept override {
                 return _source->MoveNext();
             }
-            SharedPointer<T> Get() const noexcept override {
-                return _source->Get();
+            SharedPointer<T> Current() const noexcept override {
+                return _source->Current();
             }
         };
 
@@ -238,8 +238,8 @@ namespace Commons::Collections{
             bool MoveNext() noexcept override {
                 return ++_iterateIndex <= _number && _source->MoveNext();
             }
-            SharedPointer<T> Get() const noexcept override {
-                return _source->Get();
+            SharedPointer<T> Current() const noexcept override {
+                return _source->Current();
             }
         };
     }
@@ -260,7 +260,7 @@ namespace Commons::Collections{
                 return *this;
             }
             typename IEnumerator<T>::EnumeratorType operator*() const {
-                return _source->Get();
+                return _source->Current();
             }
             bool operator!=(const _IEnumerableCppStyleForEachHelper_EndIterator<T>&) {
                 return _moveNextValue;
@@ -271,7 +271,7 @@ namespace Commons::Collections{
     template <class T>
     class IInputCollection{
     public:
-        virtual int GetCount() const = 0;
+        virtual int Count() const = 0;
         virtual void Add(T elem) = 0;
         virtual void Clear() = 0;
         virtual ~IInputCollection() { }
@@ -290,7 +290,7 @@ namespace Commons::Collections{
 
     template <class TKey, class TValue>
     class IKeyValueCollection: public IEnumerable<Pair<TKey, TValue>> {
-        virtual int GetCount() const = 0;
+        virtual int Count() const = 0;
         virtual void Add(TKey key, TValue value) = 0;
         virtual void Clear() = 0;
         virtual bool Contains(TKey key) const = 0;

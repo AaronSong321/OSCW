@@ -45,7 +45,7 @@ namespace Commons::Collections {
                 _cur = _cur->Next();
                 return _cur != _root;
             }
-            SharedPointer<T> Get() const noexcept override {
+            SharedPointer<T> Current() const noexcept override {
                 return MakeShared<T>(_cur->Data());
             }
         };
@@ -177,7 +177,7 @@ namespace Commons::Collections {
             return enumerator.template StaticCast<IEnumerator<T>>();
         }
 
-        int GetCount() const override {
+        int Count() const override {
             return _count;
         }
 
@@ -268,7 +268,7 @@ namespace Commons::Collections {
 //                return;
 //            auto node = _root;
 //            do {
-//                cout << node << ", next="<<node->_next.Get()<<" "<<node->_next<<", prev="<<node->_prev.Pin().GetRawPointer()<<" "<<node->_prev<<endl;
+//                cout << node << ", next="<<node->_next.Current()<<" "<<node->_next<<", prev="<<node->_prev.Pin().GetRawPointer()<<" "<<node->_prev<<endl;
 //                node = node->_next;
 //            } while (node != _root);
 //        }

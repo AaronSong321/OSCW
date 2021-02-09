@@ -203,7 +203,7 @@ namespace Commons {
             template <class T, class Td = DecayType<T>, class __A = typename EnableIf<IsBaseOf<B, Td>::Value>::Type>
             static auto Get(T&& t) -> T&&;
             template <class T, class Td = DecayType<T>, class __A = typename EnableIf<IsReferenceWrapper<Td>::Value>::Type>
-            static auto Get(T&& t) -> decltype(t.Get());
+            static auto Get(T&& t) -> decltype(t.Current());
             template <class T, class Td = DecayType<T>,
                 class __A = typename EnableIf<!IsBaseOf<B, Td>::Value>::Type,
                 class __B = typename EnableIf<!IsReferenceWrapper<Td>::Value>::Type
