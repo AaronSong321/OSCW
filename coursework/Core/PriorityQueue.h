@@ -811,17 +811,17 @@ namespace Commons::Collections {
     }
 
     template <class TKey>
-    class PriorityQueue: private FibHeap<TKey, TKey> {
+    class PriorityQueue: private FibHeap<TKey, TKey>, public Queue<TKey> {
     public:
         using FibHeap<TKey, TKey>::FibHeap;
         PriorityQueue(IValueComparator<TKey> c): FibHeap<TKey, TKey>(c) {}
-        void Enqueue(TKey key) {
+        void Enqueue(TKey key) override {
             FibHeap<TKey, TKey>::Insert(key, key);
         }
-        TKey Front() const {
+        TKey Front() const override {
             return FibHeap<TKey, TKey>::Minimum()->Value();
         }
-        TKey Dequeue() {
+        TKey Dequeue() override {
             return FibHeap<TKey, TKey>::ExtractMin()->Value();
         }
     };

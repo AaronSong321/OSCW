@@ -1,11 +1,5 @@
-#include <infos/kernel/sched.h>
-#include <infos/kernel/thread.h>
-#include <infos/kernel/log.h>
-#include <infos/util/list.h>
-#include <infos/util/lock.h>
 
-using namespace infos::kernel;
-using namespace infos::util;
+
 
 namespace Commons {
     template<class T> struct RemoveReference { typedef T Type; };
@@ -40,8 +34,6 @@ namespace Commons {
     template<class T> struct RemoveCV<const volatile T> { typedef T Type; };
     template<class T> using RemoveCVType = typename RemoveCV<T>::Type;
 }
-
-
 
 
 namespace Commons {
@@ -199,7 +191,7 @@ namespace Commons {
 #ifdef __clang__
     __is_function(T)
 #else
-    !(IsReference<TKey>::Value || IsConst<const TKey>::Value)
+    !(IsReference<T>::Value || IsConst<const T>::Value)
 #endif
     > {};
 
@@ -275,18 +267,11 @@ namespace Commons {
 };
 
 
-
-
-
-
-
-
-
 #define ThrowIf0(argName) if (!argName) throw #argName" is null!"
 /**
  * Used when such exit doesn't really exist
  */
-#define DummyThrow() throw 0;
+#define DummyThrow() //throw 0
 #define ShallThrow(expression) DummyThrow()
 
 #define OverloadComparisonOperatorsDeclaration1(typeName, typeArg1) \
@@ -318,10 +303,6 @@ template <class typeArg1> \
 bool operator<=(typeName<typeArg1> lhs, typeName<typeArg1> rhs) { return typeName<typeArg1>::CompareTo(lhs, rhs)<=0; }
 
 #define NotImplementedException() throw "function '" __PRETTY_FUNCTION__ "' not implemented yet."
-
-
-
-
 
 
 namespace Commons{
@@ -561,8 +542,6 @@ namespace Commons{
 }
 
 
-
-
 namespace Commons {
 	namespace __impl {
 		template <class RetType, class... ArgTypes>
@@ -662,10 +641,6 @@ namespace Commons{
 }
 
 
-
-
-
-
 namespace Commons {
 #if ENABLECONCEPT
 	template <class T1, class T2>
@@ -687,11 +662,6 @@ namespace Commons {
 }
 
 
-
-
-
-
-
 namespace Commons {
     template <class T1, class T2>
     struct Pair {
@@ -705,8 +675,6 @@ namespace Commons {
         }
     };
 }
-
-
 
 
 namespace Commons::Collections{
@@ -988,13 +956,6 @@ namespace Commons::Collections{
 }
 
 
-
-
-
-
-
-
-
 namespace Commons{
     /**
      * This interface indicates that this type can be compared to type TKey
@@ -1064,12 +1025,6 @@ namespace Commons{
         return MakeShared<Fun<bool(const T, const T)>>(&__impl::_ValueEquals<T>).template StaticCast<IValueEqualityComparator<T>>();
     }
 }
-
-
-
-
-
-
 
 
 namespace Commons{
@@ -1155,6 +1110,15 @@ namespace Commons{
 }
 
 
+namespace Commons::Collections {
+    template <class T>
+    class Queue {
+    public:
+        virtual void Enqueue(T elem) = 0;
+        virtual T Dequeue() = 0;
+        virtual T Front() const = 0;
+    };
+}
 
 
 namespace Commons::Collections {
@@ -1204,7 +1168,7 @@ namespace Commons::Collections {
 
 
     template <class T>
-    class List: public ICollection<T> {
+    class List: public ICollection<T>, public Queue<T> {
     private:
         SharedPointer<ListNode<T>> _root;
         int _count;
@@ -1392,16 +1356,21 @@ namespace Commons::Collections {
             ret: return item;
         }
 
+        void Enqueue(T elem) override {
+            AddToTail(elem);
+        }
+        T Dequeue() override {
+            const auto g = (_root->Data());
+            RemoveNode(_root);
+            return g;
+        }
+        T Front() const override {
+            return _root->Data();
+        }
+
 
     };
 }
-
-
-
-
-
-
-
 
 
 namespace Commons::Math {
@@ -1445,8 +1414,6 @@ namespace Commons::Math {
         }
     };
 }
-
-
 
 
 namespace Commons::Collections {
@@ -1869,24 +1836,39 @@ namespace Commons::Collections {
     }
 
     template <class TKey>
-    class PriorityQueue: private FibHeap<TKey, TKey> {
+    class PriorityQueue: private FibHeap<TKey, TKey>, public Queue<TKey> {
     public:
         using FibHeap<TKey, TKey>::FibHeap;
         PriorityQueue(IValueComparator<TKey> c): FibHeap<TKey, TKey>(c) {}
-        void Enqueue(TKey key) {
+        void Enqueue(TKey key) override {
             FibHeap<TKey, TKey>::Insert(key, key);
         }
-        TKey Front() const {
+        TKey Front() const override {
             return FibHeap<TKey, TKey>::Minimum()->Value();
         }
-        TKey Dequeue() {
+        TKey Dequeue() override {
             return FibHeap<TKey, TKey>::ExtractMin()->Value();
         }
     };
 }
 
-using namespace Commons;
-using namespace Commons::Collections;
+
+/*
+ * FIFO Scheduling Algorithm
+ * SKELETON IMPLEMENTATION -- TO BE FILLED IN FOR TASK (2)
+ */
+
+/*
+ * STUDENT NUMBER: s2067807
+ */
+#include <infos/kernel/sched.h>
+#include <infos/kernel/thread.h>
+#include <infos/kernel/log.h>
+#include <infos/util/list.h>
+#include <infos/util/lock.h>
+
+using namespace infos::kernel;
+using namespace infos::util;
 
 
 /**

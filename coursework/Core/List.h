@@ -4,6 +4,7 @@
 #include <iostream>
 using namespace std;
 #include "IntRange.h"
+#include "LinearCollection.h"
 
 namespace Commons::Collections {
     template <class T>
@@ -52,7 +53,7 @@ namespace Commons::Collections {
 
 
     template <class T>
-    class List: public ICollection<T> {
+    class List: public ICollection<T>, public Queue<T> {
     private:
         SharedPointer<ListNode<T>> _root;
         int _count;
@@ -238,6 +239,18 @@ namespace Commons::Collections {
             }
             ShallThrow(std::out_of_range("List index out of range"));
             ret: return item;
+        }
+
+        void Enqueue(T elem) override {
+            AddToTail(elem);
+        }
+        T Dequeue() override {
+            const auto g = (_root->Data());
+            RemoveNode(_root);
+            return g;
+        }
+        T Front() const override {
+            return _root->Data();
         }
 
 //        void Print() const {
