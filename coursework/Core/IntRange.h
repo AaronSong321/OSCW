@@ -41,7 +41,7 @@ namespace Commons{
                 else
                     return --_current > _end;
             }
-            SharedPointer<T> Get() const noexcept override {
+            SharedPointer<T> Current() const noexcept override {
                 return MakeShared<T>(const_cast<Range_Enumerator<T>*>(this)->_current);
             }
         };
