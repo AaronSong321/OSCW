@@ -1049,7 +1049,7 @@ namespace Commons{
             T _current;
 
         public:
-            explicit Range_Enumerator(const Range<T>* r):_start(r->GetStart()), _end(r->GetEnd()), _current(r->GetStart() - 1){
+            explicit Range_Enumerator(const Range<T>* r):_start(r->Start()), _end(r->End()), _current(r->Start() - 1){
                 if (_start > _end) {
                     _current = _start + 1;
                 }
