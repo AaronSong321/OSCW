@@ -59,8 +59,8 @@ namespace Commons{
     public:
         constexpr Range(T start, T end): _start(start), _end(end){
         }
-        T GetStart() const { return _start; }
-        T GetEnd() const { return _end; }
+        T Start() const { return _start; }
+        T End() const { return _end; }
 
         SharedPointer<IEnumerator<T>> GetEnumerator() const override {
             auto ptr = MakeShared<::Commons::__impl::Range_Enumerator<T>>(this);
