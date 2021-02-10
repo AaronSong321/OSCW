@@ -18,10 +18,19 @@ using namespace infos::kernel;
 using namespace infos::mm;
 using namespace infos::util;
 
+// #define PrintInThisFile
+#ifdef PrintInThisFile
+#define ld(c, ...) mm_log.messagef(LogLevel::DEBUG, c, __VA_ARGS__)
+#define li(c, ...) mm_log.messagef(LogLevel::INFO, c, __VA_ARGS__)
+#else
+#define ld(c, ...) 
+#define li(c, ...)
+#endif
+
 #define MAX_ORDER	17
 
 static inline bool IsAvailable(PageDescriptor* des) {
-    return des->->type==PageDescriptorType::AVAILABLE;
+    return des->type==PageDescriptorType::AVAILABLE;
 }
 
 /**
@@ -152,12 +161,19 @@ private:
 		assert(source_order>0);
 
 		auto sourceOrderMinus1 = source_order-1;
+		auto copyPointer = *block_pointer;
+		ld("split 1 %p %ld", *block_pointer, source_order);
 		remove_block(*block_pointer, source_order);
-		insert_block(*block_pointer, sourceOrderMinus1);
-		insert_block(buddy_of(*block_pointer, sourceOrderMinus1), sourceOrderMinus1);
-		return *block_pointer;
+		// ld("split", 1);
+		auto ret = insert_block(copyPointer, sourceOrderMinus1);
+		// ld("split 3 %p", _free_areas[sourceOrderMinus1]);
+		auto buddy = buddy_of(copyPointer, sourceOrderMinus1);
+		// ld("split 2 %p %p %p %p", buddy, *block_pointer, copyPointer, *ret);
+		buddy->next_free = (*ret)->next_free;
+		(*ret)->next_free = buddy;
+		ld("split 2 %p %p %p %p", buddy, *block_pointer, copyPointer, *ret);
+		return *ret;
 	}
-	
 	/**
 	 * Takes a block in the given source order, and merges it (and it's buddy) into the next order.
 	 * This function assumes both the source block and the buddy block are in the free list for the
@@ -174,24 +190,43 @@ private:
 		assert(is_correct_alignment_for_order(*block_pointer, source_order));
         assert(source_order < MAX_ORDER);
 
+		ld("merge block %p with %p size=%ld", *block_pointer, (*block_pointer)->next_free, GetSize(source_order));
         auto sourceOrderPlus1 = source_order+1;
-        remove_block(*block_pointer, source_order);
-        remove_block(buddy_of(*block_pointer, source_order)), source_order);
-        insert_block(*block_pointer, sourceOrderPlus1);
-        return block_pointer;
+		auto removeNodePointer = _free_areas[source_order];
+		auto before = removeNodePointer;
+		while (removeNodePointer && removeNodePointer != *block_pointer) {
+			before = removeNodePointer;
+			removeNodePointer = removeNodePointer->next_free;
+		}
+		if (removeNodePointer == _free_areas[source_order]) {
+			_free_areas[source_order] = removeNodePointer->next_free->next_free;
+		} else {
+			before->next_free = removeNodePointer->next_free->next_free;
+		}
+		removeNodePointer->next_free->next_free = nullptr;
+		removeNodePointer->next_free = nullptr;
+        return insert_block(*block_pointer, sourceOrderPlus1);
+	}
+	
+	void TryMerge(PageDescriptor* page, uint64_t order) {
+		if (order >= maxOrder)
+			return;
+		auto buddy = buddy_of(page, order);
+		if (buddy->next_free == page && is_correct_alignment_for_order(buddy, order+1)) {
+			TryMerge(*merge_block(&buddy, order), order+1);
+		}
+		else if (page->next_free == buddy) {
+			TryMerge(*merge_block(&page, order), order+1);
+		}
 	}
 
-	void MergeWithRight(PageDescriptor* ha, int order) {
-	    if (is_correct_alignment_for_order(ha, order+1) && order < MAX_ORDER && IsAvailable(ha) && IsAvailable(buddy_of(ha, order))) {
-	        // Hope the compiler can eliminate this tail recursive call
-	        merge_block(ha, order+1);
-            MergeWithRight(ha, order+1);
-	    }
-	}
-	void SplitToLeft(PageDescriptor** ha, int order) {
-	    if (order > 0 && IsAvailable(ha)) {
+	void SplitToLeft(PageDescriptor** ha, uint64_t order, uint64_t until = 0) {
+		assert(*ha);
+		auto copy = *ha;
+		ld("SplitToLeft %p %ld %ld", *ha, order, until);
+	    if (order > until) {
 	        split_block(ha, order);
-	        SplitToLeft(ha, order-1);
+	        SplitToLeft(&copy, order-1, until);
 	    }
 	}
 	
@@ -214,11 +249,16 @@ public:
 	 */
 	PageDescriptor *alloc_pages(int order) override
 	{
-        if (_free_areas[order]) {
-            auto k = _free_areas[order];
-            _free_areas[order] = k->next_free;
-            return k;
-        }
+		ld("enter alloc %d", GetSize(order));
+		for (uint64_t o = order; o <= maxOrder; ++o) {
+			if (_free_areas[o]) {
+				SplitToLeft(_free_areas+o, o, order);
+				auto ret = _free_areas[order];
+				ld("alloc %p", ret);
+				remove_block(ret, order);
+				return ret;
+			}
+		}
         return nullptr;
 	}
 	
@@ -233,9 +273,9 @@ public:
 		// for the order on which it is being freed, for example, it is
 		// illegal to free page 1 in order-1.
 		assert(is_correct_alignment_for_order(pgd, order));
-
-		pgd->type = PageDescriptor::AVAILABLE;
-		TryMergeWithRight(pgd, order);
+		ld("free %d %p", GetSize(order), pgd);
+		insert_block(pgd, order);
+		TryMerge(pgd, order);
 	}
 	
 	/**
@@ -243,11 +283,47 @@ public:
 	 * @param pgd The page descriptor of the page to reserve.
 	 * @return Returns TRUE if the reservation was successful, FALSE otherwise.
 	 */
-	bool reserve_page(PageDescriptor *pgd)
+private:
+	static constexpr uint64_t maxOrder = MAX_ORDER - 1;
+	static inline uint64_t GetSize(uint64_t order) {
+		return 1<<order;
+	}
+	PageDescriptor* basePointer;
+	inline uint64_t Pfn(PageDescriptor* page) {
+		return page-basePointer;
+	}
+
+public:
+	bool reserve_page(PageDescriptor *pgd) override
 	{
-	    if (!IsAvailable(pgd))
-	        return false;
-	    SplitToLeft(pgd);
+		for (uint64_t i=maxOrder; i>0; --i) {
+			auto block = _free_areas[i];
+			while (block && pgd >= block) {
+				if (GetSize(i) + block > pgd) {
+					split_block(&block, i);
+					break;
+				}
+				block = block->next_free;
+			}
+		}
+		if (Pfn(pgd) <= 2) {
+			ld("reserve page 1 %p ", pgd);
+		}
+		auto b = _free_areas[0];
+		while (b) {
+			if (b == pgd) {
+				remove_block(b, 0);
+				return true;
+			}
+			if (Pfn(pgd) <= 2) {
+				ld("reserve page 2 %p ", pgd);
+			}
+			b = b->next_free;
+		}
+		if (Pfn(pgd) <= 2) {
+			ld("reserve page 3 %p ", pgd);
+		}
+		return false;
 	}
 	
 	/**
@@ -256,31 +332,31 @@ public:
 	 */
 	bool init(PageDescriptor *page_descriptors, uint64_t nr_page_descriptors) override
 	{
-		mm_log.messagef(LogLevel::DEBUG, "Buddy Allocator Initialising pd=%p, nr=0x%lx", page_descriptors, nr_page_descriptors);
-		
-		// TODO: Initialise the free area linked list for the maximum order
-		// to initialise the allocation algorithm.
-        auto order = MAX_ORDER;
+		basePointer = page_descriptors;
+        auto order = maxOrder;
 		auto page = page_descriptors;
 		auto pageLeft = nr_page_descriptors;
-        auto currentPageSize = 1 << order;
-		while (pageLeft) {
+        uint64_t currentPageSize = 1 << order;
+		while (pageLeft && order>=0) {
             decltype(page) lastPageOfThisOrder = nullptr;
 			while (pageLeft >= currentPageSize) {
 			    pageLeft -= currentPageSize;
-			    page += currentPageSize;
-			    if (!lastPageOfThisOrder) {
+			    if (lastPageOfThisOrder) {
 			        lastPageOfThisOrder->next_free = page;
 			    }
 			    else {
 			        _free_areas[order] = page;
 			    }
-                lastPageOfThisOrder = page;
+				lastPageOfThisOrder = page;
+				page += currentPageSize;
 			}
-			lastPageOfThisOrder->next_free = nullptr;
+			if (lastPageOfThisOrder)
+				lastPageOfThisOrder->next_free = nullptr;
 			--order;
-			currentPageSize = currentPageSize << 1;
+			currentPageSize = currentPageSize >> 1;
 		}
+		mm_log.messagef(LogLevel::DEBUG, "Buddy Allocator Initialising pd=%p, nr=0x%lx", page_descriptors, nr_page_descriptors);
+
 		return true;
 	}
 
@@ -298,7 +374,7 @@ public:
 		mm_log.messagef(LogLevel::DEBUG, "BUDDY STATE:");
 		
 		// Iterate over each free area.
-		for (unsigned int i = 0; i < ARRAY_SIZE(_free_areas); i++) {
+		for (unsigned int i = 0; i < 8/*ARRAY_SIZE(_free_areas)*/; i++) {
 			char buffer[256];
 			snprintf(buffer, sizeof(buffer), "[%d] ", i);
 						

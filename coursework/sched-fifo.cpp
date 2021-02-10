@@ -1927,7 +1927,7 @@ public:
 	 */
 	SchedulingEntity *pick_next_entity() override
 	{
-        if (!queue.GetCount())
+        if (!queue.Count())
             return nullptr;
         return queue.Get(0);
 	}
