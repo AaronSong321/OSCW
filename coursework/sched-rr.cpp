@@ -1,4 +1,8 @@
-
+/** The first part is a part of self-implemented standard library of C++
+ * It contains a some helper functions (as in <type_traits>) and some collections (List, PriorityQueue)
+ * jump to (FIFO Scheduling Algorithm) in the comment if this part needs not examined
+ * Also, given that I cannot add a .h file, this part has to be pasted to the two .ccp files respectively
+ */
 
 
 namespace Commons {
