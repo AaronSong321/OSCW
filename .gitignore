@@ -16,3 +16,4 @@ coursework/Core/src/
 coursework/Core/CMakeLists.txt
 coursework/Core/cmake-build-debug
 coursework/Core/Generated.h
+/coursework/tarfs_decipher.cpp

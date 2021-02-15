@@ -44,6 +44,7 @@ namespace tarfs {
 
 	private:
 		TarFSNode *build_tree();
+        void BuildTreeRecursive(TarFSNode*root,struct posix_header*header,unsigned int size);
 		
 		static bool is_zero_block(const uint8_t *buffer, size_t size = 512) {
 			for (unsigned int i = 0; i < size; i++) {

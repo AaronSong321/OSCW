@@ -7,6 +7,7 @@
  * STUDENT NUMBER: s
  */
 #include "tarfs.h"
+#include <infos/define.h>
 #include <infos/kernel/log.h>
 
 using namespace infos::fs;
@@ -18,17 +19,17 @@ using namespace tarfs;
 
 /**
  * TAR files contain header data encoded as octal values in ASCII.  This function
- * converts this terrible representation into a real unsigned integer.
+ * converts this terrible representation into a real unsignedeger.
  *
  * You DO NOT need to modify this function.
  *
  * @param data The (null-terminated) ASCII data containing an octal number.
- * @return Returns an unsigned integer number, corresponding to the input data.
+ * @return Returns an unsignedeger number, corresponding to the input data.
  */
-static inline unsigned int octal2ui(const char *data)
+static inline unsigned octal2ui(const char *data)
 {
 	// Current working value.
-	unsigned int value = 0;
+	unsigned value = 0;
 
 	// Length of the input data.
 	int len = strlen(data);
@@ -53,15 +54,43 @@ static inline unsigned int octal2ui(const char *data)
 	// Return the current working value.
 	return value;
 }
+static inline unsigned octal2ui(const char* data, size_t len) {
+    unsigned value = 0;
+    int i=1, factor=1;
+    while (i < len) {
+        auto ch = data[len-i];
+        value += factor*(ch-'0');
+        factor = factor << 3;
+        ++i;
+    }
+    return value;
+}
 
 // The structure that represents the header block present in
 // TAR files.  A header block occurs before every file, this
 // this structure must EXACTLY match the layout as described
 // in the TAR file format description.
 namespace tarfs {
-	struct posix_header {
-		// TO BE FILLED IN
-	} __packed;
+    struct posix_header
+    {                              /* byte offset */
+        char name[100];               /*   0 */
+        char mode[8];                 /* 100 */
+        char uid[8];                  /* 108 */
+        char gid[8];                  /* 116 */
+        char size[12];                /* 124 */
+        char mtime[12];               /* 136 */
+        char chksum[8];               /* 148 */
+        char typeflag;                /* 156 */
+        char linkname[100];           /* 157 */
+        char magic[6];                /* 257 */
+        char version[2];              /* 263 */
+        char uname[32];               /* 265 */
+        char gname[32];               /* 297 */
+        char devmajor[8];             /* 329 */
+        char devminor[8];             /* 337 */
+        char prefix[155];             /* 345 */
+        /* 500 */
+    } __packed;
 }
 
 /**
@@ -71,17 +100,24 @@ namespace tarfs {
  * @param off The offset within the file.
  * @return Returns the number of bytes read into the buffer.
  */
-int TarFSFile::pread(void* buffer, size_t size, off_t off)
-{
-	if (off >= this->size()) return 0;
 
-	// TO BE FILLED IN
-	
-	// buffer is a pointer to the buffer that should receive the data.
-	// size is the amount of data to read from the file.
-	// off is the zero-based offset within the file to start reading from.
-	
-	return 0;
+int TarFSFile::pread(void* buffer, size_t size, off_t off) {
+    if (off >= this->size()) return 0;
+    unsigned readNum = 0;
+    const int bufferSize = _owner.block_device().block_size();
+    char buffer[bufferSize];
+    while (readNum < size) {
+        unsigned discardedContents = off / bufferSize;
+        unsigned actualReadContents = off % bufferSize;
+        if (!_owner.block_device().read_blocks(buffer, _file_start_block + discardedContents, 1)) {
+            break;
+        }
+        size_t filePage = __min(512 - actualReadContents, size - readNum);
+        memcpy((void*) ((uintptr_t) buffer + readNum), (void*) ((uintptr_t) buffer + (uintptr_t) actualReadContents), filePage);
+        readNum += filePage;
+        off += filePage;
+    }
+    return readNum;
 }
 
 /**
@@ -89,25 +125,53 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off)
  * representation.
  * @return Returns the root TarFSNode that corresponds to the TAR file structure.
  */
-TarFSNode* TarFS::build_tree()
-{
-	// Create the root node.
-	TarFSNode *root = new TarFSNode(NULL, "", *this);
+TarFSNode* TarFS::build_tree() {
+    TarFSNode* root = new TarFSNode(NULL, "", *this);
+    uint8_t* buffer = new uint8_t[512];
+    constexpr unsigned bufferSize = ARRAY_SIZE(buffer);
+    for (unsigned blockCount = 0;
+         blockCount < block_device().block_count();
+         blockCount++) {
+        if (!block_device().read_blocks(buffer, blockCount, 1)) {
+            fs_log.message(LogLevel::ERROR, "Unable to read from block device");
+            return NULL;
+        }
+        if (is_zero_block(buffer)) {
+            break;
+        }
+        struct posix_header* tempHeader = (struct posix_header*) buffer;
+        unsigned blockToRead = zmfj(tempHeader->size);
+        if (tempHeader->typeflag == '0') {
+            BuildTreeRecursive(root, tempHeader, blockCount);
+        }
+        blockCount += (blockToRead / bufferSize) + ((blockToRead % bufferSize) ? 1 : 0);
+    }
+    delete buffer;
+    return root;
+}
 
-	// TO BE FILLED IN
-	
-	// You must read the TAR file, and build a tree of TarFSNodes that represents each file present in the archive.
-
-	return root;
+void TarFS::BuildTreeRecursive(TarFSNode*root,struct posix_header*header,unsigned size) {
+    auto path = infos::util::String(header->name).split('/', false);
+    TarFSNode* prevRoot = root;
+    for (const auto& folderName:path) {
+        TarFSNode* node = (TarFSNode*) prevRoot->get_child(folderName);
+        if (!node) {
+            node = new TarFSNode(prevRoot, folderName, *this);
+            prevRoot->BuildTreeRecursive(folderName, node);
+        }
+        prevRoot = node;
+    }
+    prevRoot->set_block_offset(size);
+    prevRoot->size(octal2ui(header->size));
 }
 
 /**
  * Returns the size of this TarFS File
  */
-unsigned int TarFSFile::size() const
+unsigned TarFSFile::size() const
 {
-	// TO BE FILLED IN
-	return 0;
+    const auto siz = ARRAY_SIZE(_hdr->size);
+    return octal2ui(_hdr->size, siz);
 }
 
 /* --- YOU DO NOT NEED TO CHANGE ANYTHING BELOW THIS LINE --- */
@@ -130,7 +194,7 @@ PFSNode *TarFS::mount()
 /**
  * Constructs a TarFS File object, given the owning file system and the block
  */
-TarFSFile::TarFSFile(TarFS& owner, unsigned int file_header_block)
+TarFSFile::TarFSFile(TarFS& owner, unsigned file_header_block)
 : _hdr(NULL),
 _owner(owner),
 _file_start_block(file_header_block),
@@ -275,7 +339,7 @@ PFSNode* TarFSNode::mkdir(const String& name)
  * that contains the header of the file that this node represents.
  * @param offset The block offset that corresponds to this node.
  */
-void TarFSNode::set_block_offset(unsigned int offset)
+void TarFSNode::set_block_offset(unsigned offset)
 {
 	_has_block_offset = true;
 	_block_offset = offset;
