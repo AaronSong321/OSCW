@@ -128,7 +128,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
 TarFSNode* TarFS::build_tree() {
     TarFSNode* root = new TarFSNode(nullptr, "", *this);
     uint8_t* buffer = new uint8_t[512];
-    for (unsigned int blockCount = 0; blockCount < block_device().block_count(); blockCount++) {
+    for (unsigned blockCount = 0; blockCount < block_device().block_count(); blockCount++) {
         if (!block_device().read_blocks(buffer, blockCount, 1)) {
             // throw std::logic_error("Unable to read from block");
             return nullptr;
@@ -137,7 +137,7 @@ TarFSNode* TarFS::build_tree() {
             break;
         }
         struct posix_header* tempHeader = (struct posix_header*) buffer;
-        unsigned int blockToRead = octal2ui(tempHeader->size);
+        unsigned blockToRead = octal2ui(tempHeader->size);
         if (tempHeader->typeflag == '0') {
             BuildTreeRecursive(root, tempHeader, blockCount);
         }
