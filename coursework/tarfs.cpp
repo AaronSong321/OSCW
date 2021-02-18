@@ -93,8 +93,8 @@ namespace tarfs {
     } __packed;
 }
 
-#define cat(s) fs_log.message(LogLevel::INFO, #s)
-#define cam(s, ...) fs_log.messagef(LogLevel::INFO, s, __VA_ARGS__)
+#define cat(s) fs_log.message(LogLevel::INFO, #s);
+#define cam(s, ...) fs_log.messagef(LogLevel::INFO, s, __VA_ARGS__);
 /**
  * Reads the contents of the file into the buffer, from the specified file offset.
  * @param buffer The buffer to read the data into.
@@ -108,7 +108,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
     char fromBuffer[bufferSize];
-    cat(1);
+    cat(1)
     while (readNum < size) {
         unsigned discardedContents = off / bufferSize;
         unsigned actualReadContents = off % bufferSize;
@@ -117,11 +117,11 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
         }
         cam("2 %u %u", discardedContents, actualReadContents)
         size_t filePage = __min(512 - actualReadContents, size - readNum);
-        cam("3 %u", (unsigned)filePage);
+        cam("3 %u", (unsigned)filePage)
         memcpy((void*) ((uintptr_t) buffer + readNum), (void*) ((uintptr_t) fromBuffer + (uintptr_t) actualReadContents), filePage);
         readNum += filePage;
         off += filePage;
-        cam("4 %u %u", readNum, off);
+        cam("4 %u %u", readNum, off)
     }
     return readNum;
 }
