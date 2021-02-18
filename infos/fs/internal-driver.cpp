@@ -87,7 +87,7 @@ lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(dd
         const ji kKk = xxC.block_device().block_size();
         jc Kkk[kKk];
 //        cam("1 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
-        while (kkk < KKK)
+        while (kkk < KKK) {
             jj kNn = KvK / kKk;
             jj kNN = KvK % kKk;
             if (!xxC.block_device().read_blocks(Kkk, xXc + kNn, 1)) {
