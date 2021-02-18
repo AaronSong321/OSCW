@@ -79,7 +79,7 @@ lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(dd
         qlAaA ijy;
     }
     int pread(void*KvKK, size_t KKK, off_t KvK) override<%
-        if (KvK >= XXc)qlAaA0;
+        if (KvK >= XXc)qlAaA 0;
         jj kkk = 0;
         const ji kKk = xxC.block_device().block_size();
         jc Kkk[kKk];

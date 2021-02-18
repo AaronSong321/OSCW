@@ -160,7 +160,7 @@ void TarFS::BuildTreeRecursive(TarFSNode* root, posix_header*header, unsigned si
     TarFSNode* prevRoot = root;
     cat(6);
     for (const auto& folderName: path) {
-        cam("7 %s from %s", folderName, path);
+        cam("7 %s from %s", folderName.c_str(), header->name);
         TarFSNode* node = (TarFSNode*) prevRoot->get_child(folderName);
         if (!node) {
             node = new TarFSNode(prevRoot, folderName, *this);
