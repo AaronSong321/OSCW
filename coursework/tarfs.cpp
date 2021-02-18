@@ -115,12 +115,13 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
         if (!_owner.block_device().read_blocks(buffer, _file_start_block + discardedContents, 1)) {
             break;
         }
-        cat(2);
+        cam("2 %u %u", discardedContents, actualReadContents)
         size_t filePage = __min(512 - actualReadContents, size - readNum);
+        cam("3 %u", (unsigned)filePage);
         memcpy((void*) ((uintptr_t) buffer + readNum), (void*) ((uintptr_t) fromBuffer + (uintptr_t) actualReadContents), filePage);
         readNum += filePage;
         off += filePage;
-        cat(3);
+        cam("4 %u %u", readNum, off);
     }
     return readNum;
 }
@@ -140,7 +141,6 @@ TarFSNode* TarFS::build_tree() {
             return nullptr;
         }
         if (is_zero_block(buffer)) {
-            cat(4);
             break;
         }
         posix_header* tempHeader = (struct posix_header*) buffer;
@@ -158,12 +158,9 @@ TarFSNode* TarFS::build_tree() {
 void TarFS::BuildTreeRecursive(TarFSNode* root, posix_header*header, unsigned size) {
     auto path = infos::util::String(header->name).split('/', false);
     TarFSNode* prevRoot = root;
-    cat(6);
     for (const auto& folderName: path) {
-        cam("7 %s from %s", folderName.c_str(), header->name);
         TarFSNode* node = (TarFSNode*) prevRoot->get_child(folderName);
         if (!node) {
-            cam("8 create folder %s", folderName.c_str());
             node = new TarFSNode(prevRoot, folderName, *this);
             prevRoot->add_child(folderName, node);
         }
