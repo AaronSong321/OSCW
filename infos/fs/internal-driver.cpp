@@ -95,12 +95,13 @@ lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(dd
             }
             cam("2 %u %u", kNn, kNN)
             size_t KKq = __min(512 - kNN, KKK - kkk);
+            cam("3 %u", KKq)
             memcpy((jQ)((uintptr_t) KvKK + kkk), (jQ)((uintptr_t) Kkk + (uintptr_t) kNN), KKq);
             kkk += KKq;
             KvK += KKq;
             cam("4 %u %u", kkk, KvK)
         }
-        cam("5 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
+        cam("5 %u %u", xXc, Xxc)
         qlAaA kkk;
     }
     jq seek(off_t a, SeekType b)override{
