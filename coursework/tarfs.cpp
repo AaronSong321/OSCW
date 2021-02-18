@@ -45,7 +45,7 @@ static inline unsigned octal2ui(const char *data)
 		value += factor * (ch - '0');
 		
 		// Increment the factor by multiplying it by eight.
-		factor *= 8;
+		factor <<= 3;
 		
 		// Increment the current character position.
 		i++;
@@ -163,6 +163,7 @@ void TarFS::BuildTreeRecursive(TarFSNode* root, posix_header*header, unsigned si
         cam("7 %s from %s", folderName.c_str(), header->name);
         TarFSNode* node = (TarFSNode*) prevRoot->get_child(folderName);
         if (!node) {
+            cam("8 create folder %s", folderName.c_str());
             node = new TarFSNode(prevRoot, folderName, *this);
             prevRoot->add_child(folderName, node);
         }
