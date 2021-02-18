@@ -136,7 +136,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
 TarFSNode* TarFS::build_tree() {
     TarFSNode* root = new TarFSNode(nullptr, "", *this);
     uint8_t* buffer = new uint8_t[512];
-    for (unsigned blockCount = 0; blockCount < block_device().block_count(); blockCount++) {
+    for (unsigned blockCount = 0; blockCount < block_device().block_count(); ++blockCount) {
         if (!block_device().read_blocks(buffer, blockCount, 1)) {
             fs_log.message(LogLevel::ERROR, "unable to read from block device");
             // throw std::logic_error("Unable to read from block");
@@ -145,7 +145,7 @@ TarFSNode* TarFS::build_tree() {
         if (is_zero_block(buffer)) {
             break;
         }
-        posix_header* tempHeader = (struct posix_header*) buffer;
+        posix_header* tempHeader = (posix_header*)buffer;
         unsigned blockToRead = octal2ui(tempHeader->size);
         if (tempHeader->typeflag == '0') {
             BuildTreeRecursive(root, tempHeader, blockCount);
@@ -187,11 +187,12 @@ unsigned TarFSFile::size() const
  */
 PFSNode *TarFS::mount()
 {
+    cat(mount0)
 	// If the root node has not been generated, then build it.
 	if (_root_node == NULL) {
 		_root_node = build_tree();
 	}
-
+    cat(mount1)
 	// Return the root node.
 	return _root_node;
 }
@@ -306,6 +307,8 @@ File* TarFSNode::open()
  */
 Directory* TarFSNode::opendir()
 {
+    if (_has_block_offset)
+        return nullptr;
 	return new TarFSDirectory(*this);
 }
 
