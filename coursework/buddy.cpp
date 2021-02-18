@@ -374,7 +374,7 @@ public:
 		mm_log.messagef(LogLevel::DEBUG, "BUDDY STATE:");
 		
 		// Iterate over each free area.
-		for (unsigned int i = 0; i < 8/*ARRAY_SIZE(_free_areas)*/; i++) {
+		for (unsigned int i = 0; i < ARRAY_SIZE(_free_areas); i++) {
 			char buffer[256];
 			snprintf(buffer, sizeof(buffer), "[%d] ", i);
 						
