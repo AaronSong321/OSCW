@@ -104,6 +104,7 @@ namespace tarfs {
  */
 
 int TarFSFile::pread(void* buffer, size_t size, off_t off) {
+    cam("0 %u %u", _file_start_block, _cur_pos)
     if (off >= this->size()) return 0;
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
@@ -123,6 +124,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
         off += filePage;
         cam("4 %u %u", readNum, off)
     }
+    cam("5 %u %u", _file_start_block, _cur_pos)
     return readNum;
 }
 
