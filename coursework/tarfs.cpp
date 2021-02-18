@@ -108,7 +108,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
     char fromBuffer[bufferSize];
-    cat(1)
+    cam("1 buffer=%p, size=%u, off=%u, bufferSize=%d", buffer, size, off, bufferSize)
     while (readNum < size) {
         unsigned discardedContents = off / bufferSize;
         unsigned actualReadContents = off % bufferSize;
@@ -146,7 +146,6 @@ TarFSNode* TarFS::build_tree() {
         posix_header* tempHeader = (struct posix_header*) buffer;
         unsigned blockToRead = octal2ui(tempHeader->size);
         if (tempHeader->typeflag == '0') {
-            cat(5);
             BuildTreeRecursive(root, tempHeader, blockCount);
         }
         blockCount += (blockToRead / 512) + ((blockToRead % 512) ? 1 : 0);
