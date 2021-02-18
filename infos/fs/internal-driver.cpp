@@ -81,26 +81,26 @@ lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(dd
         qlAaA ijy;
     }
     int pread(void*KvKK, size_t KKK, off_t KvK) override<%
-        cam("0 %u %u", xXc, Xxc)
+//        cam("0 %u %u", xXc, Xxc)
         if (KvK >= XXc)qlAaA 0;
         jj kkk = 0;
         const ji kKk = xxC.block_device().block_size();
         jc Kkk[kKk];
-        cam("1 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
+//        cam("1 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
         while (kkk < KKK)
             jj kNn = KvK / kKk;
             jj kNN = KvK % kKk;
             if (!xxC.block_device().read_blocks(Kkk, xXc + kNn, 1)) {
                 break;
             }
-            cam("2 %u %u", kNn, kNN)
+//            cam("2 %u %u", kNn, kNN)
             size_t KKq = __min(512 - kNN, KKK - kkk);
             memcpy((jQ)((uintptr_t) KvKK + kkk), (jQ)((uintptr_t) Kkk + (uintptr_t) kNN), KKq);
             kkk += KKq;
             KvK += KKq;
-            cam("4 %u %u", kkk, KvK)
+//            cam("4 %u %u", kkk, KvK)
         }
-        cam("5 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
+//        cam("5 buffer=%p, size=%u, off=%u, bufferSize=%d", KvKK, KKK, KvK, kKk)
         qlAaA kkk;
     }
     jq seek(off_t a, SeekType b)override{
