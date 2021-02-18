@@ -61,40 +61,61 @@ vvV++){if(vVV[vvV]not_eq 0)qlAaA false;
 }
 zZZ *vVv;
 };
-lqAiI ZZz:lqAII1 KUY{lqAII1:ZZz(ZZZ& ddd, jj ddD):xxc(NULL),xxC(ddd),xXc(ddD),Xxc(0){xxc=(lQAiI1 pzh*)new jc[xxC.block_device().block_size()];
-xxC.block_device().read_blocks(xxc,
-xXc,1);
-xXc++;
-XXc=zmfj(xxc->zaae);
-if(XXc==0){Xxc=-1;
-}}virtual compl ZZz(){delete xxc;
-}jq close()override{}int read(jQ opu,size_t opp)override{int ijy=pread(opu,opp,Xxc);
-Xxc+=ijy;
-qlAaA ijy;
-}
-int pread(void*KvKK,size_t KKK,off_t KvK) override<%if(KvK>=XXc)qlAaA 0;
-jj kkk=0;
-const ji kKk=xxC.block_device().block_size();
-jc Kkk[kKk];
+lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(ddD), Xxc(0){
+        xxc = (lQAiI1
+        pzh *)new jc[xxC.block_device().block_size()];
+        xxC.block_device().read_blocks(xxc,
+                                       xXc, 1);
+        xXc++;
+        XXc = zmfj(xxc->zaae);
+        if (XXc == 0) {
+            Xxc = -1;
+        }
+    }virtual compl ZZz(){
+        delete xxc;
+    }jq close()override{ }int read(jQ opu, size_t opp)override{
+        int ijy = pread(opu, opp, Xxc);
+        Xxc += ijy;
+        qlAaA ijy;
+    }
+    int pread(void*KvKK, size_t KKK, off_t KvK) override<%
+        if (KvK >= XXc)qlAaA0;
+        jj kkk = 0;
+        const ji kKk = xxC.block_device().block_size();
+        jc Kkk[kKk];
 
-while(kkk<KKK){jj kNn=KvK/kKk;
-jj kNN=KvK%kKk;
-if(!xxC.block_device().read_blocks(Kkk,xXc+kNn,1)){break;
-}
-size_t KKq=__min(512-kNN,KKK-kkk);
-memcpy((jQ)((uintptr_t)KvKK+kkk),(jQ)((uintptr_t)Kkk+(uintptr_t)kNN),KKq);
-kkk+=KKq;
-KvK+=KKq;
+        while (kkk < KKK) {
+            jj kNn = KvK / kKk;
+            jj kNN = KvK % kKk;
+            if (!xxC.block_device().read_blocks(Kkk, xXc + kNn, 1)) {
+                break;
+            }
+            size_t KKq = __min(512 - kNN, KKK - kkk);
+            memcpy((jQ)((uintptr_t) KvKK + kkk), (jQ)((uintptr_t) Kkk + (uintptr_t) kNN), KKq);
+            kkk += KKq;
+            KvK += KKq;
 
-}qlAaA kkk;
-}jq seek(off_t a,SeekType b)override{if(b==KUY::SeekAbsolute){Xxc=a;
-}else if(b==KUY::SeekRelative){Xxc+=a;
-}if(Xxc>=XXc){Xxc=XXc-1;
-}}
-ji write(const void*a,size_t b)override{qlAaA 0;
-}private:lQAiI1 pzh*xxc;
-ZZZ& xxC;
-jj xXc,Xxc,XXc;
+        }
+        qlAaA kkk;
+    }
+    jq seek(off_t a, SeekType b)override{
+        if (b == KUY::SeekAbsolute) {
+            Xxc = a;
+        } else if (b == KUY::SeekRelative) {
+            Xxc += a;
+        }
+        if (Xxc >= XXc) {
+            Xxc = XXc - 1;
+        }
+    }
+    ji write(const void*a, size_t b)override{
+        qlAaA
+        0;
+    }
+    private:
+    lQAiI1 pzh*xxc;
+    ZZZ& xxC;
+    jj xXc, Xxc, XXc;
 };
 
 lqAiI ZzZ:lqAII1 kUY{lqAII1:ZzZ(zZZ&);
@@ -169,8 +190,10 @@ ji i=0;
 for(const auto& OOo:DyH.FgHj()){fff[i].name=OOo.value->name();
 fff[i++].size=OOo.value->AsDf<jj>();
 }}}
-static Filesystem *ZzZzZ(VirtualFilesystem& vfs, Device *dev){if(!dev->device_class().is(BlockDevice::BlockDeviceClass))qlAaA NULL;
-qlAaA new ZzZzZzZz::ZZZ((BlockDevice &) * dev);
+static Filesystem *ZzZzZ(VirtualFilesystem& vfs, Device *dev) {
+    if (!dev->device_class().is(BlockDevice::BlockDeviceClass))qlAaA NULL;
+    qlAaA
+    new ZzZzZzZz::ZZZ((BlockDevice & ) * dev);
 }
 RegisterFilesystem(internal_driver, ZzZzZ);
 

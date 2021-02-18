@@ -56,10 +56,10 @@ static inline unsigned octal2ui(const char *data)
 }
 static inline unsigned octal2ui(const char* data, size_t len) {
     unsigned value = 0;
-    int i=1, factor=1;
+    int i = 1, factor = 1;
     while (i < len) {
-        auto ch = data[len-i];
-        value += factor*(ch-'0');
+        auto ch = data[len - i];
+        value += factor * (ch - '0');
         factor = factor << 3;
         ++i;
     }
@@ -93,6 +93,8 @@ namespace tarfs {
     } __packed;
 }
 
+#define cat(s) fs_log.message(LogLevel::INFO, #s)
+#define cam(s, ...) fs_log.messagef(LogLevel::INFO, s, __VA_ARGS__)
 /**
  * Reads the contents of the file into the buffer, from the specified file offset.
  * @param buffer The buffer to read the data into.
@@ -106,16 +108,19 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
     char fromBuffer[bufferSize];
+    cat(1);
     while (readNum < size) {
         unsigned discardedContents = off / bufferSize;
         unsigned actualReadContents = off % bufferSize;
         if (!_owner.block_device().read_blocks(buffer, _file_start_block + discardedContents, 1)) {
             break;
         }
+        cat(2);
         size_t filePage = __min(512 - actualReadContents, size - readNum);
         memcpy((void*) ((uintptr_t) buffer + readNum), (void*) ((uintptr_t) fromBuffer + (uintptr_t) actualReadContents), filePage);
         readNum += filePage;
         off += filePage;
+        cat(3);
     }
     return readNum;
 }
@@ -130,15 +135,18 @@ TarFSNode* TarFS::build_tree() {
     uint8_t* buffer = new uint8_t[512];
     for (unsigned blockCount = 0; blockCount < block_device().block_count(); blockCount++) {
         if (!block_device().read_blocks(buffer, blockCount, 1)) {
+            fs_log.message(LogLevel::ERROR, "unable to read from block device");
             // throw std::logic_error("Unable to read from block");
             return nullptr;
         }
         if (is_zero_block(buffer)) {
+            cat(4);
             break;
         }
-        struct posix_header* tempHeader = (struct posix_header*) buffer;
+        posix_header* tempHeader = (struct posix_header*) buffer;
         unsigned blockToRead = octal2ui(tempHeader->size);
         if (tempHeader->typeflag == '0') {
+            cat(5);
             BuildTreeRecursive(root, tempHeader, blockCount);
         }
         blockCount += (blockToRead / 512) + ((blockToRead % 512) ? 1 : 0);
@@ -147,10 +155,12 @@ TarFSNode* TarFS::build_tree() {
     return root;
 }
 
-void TarFS::BuildTreeRecursive(TarFSNode*root,struct posix_header*header,unsigned size) {
+void TarFS::BuildTreeRecursive(TarFSNode* root, posix_header*header, unsigned size) {
     auto path = infos::util::String(header->name).split('/', false);
     TarFSNode* prevRoot = root;
-    for (const auto& folderName:path) {
+    cat(6);
+    for (const auto& folderName: path) {
+        cam("7 %s from %s", folderName, path);
         TarFSNode* node = (TarFSNode*) prevRoot->get_child(folderName);
         if (!node) {
             node = new TarFSNode(prevRoot, folderName, *this);
@@ -167,8 +177,7 @@ void TarFS::BuildTreeRecursive(TarFSNode*root,struct posix_header*header,unsigne
  */
 unsigned TarFSFile::size() const
 {
-    const auto siz = ARRAY_SIZE(_hdr->size);
-    return octal2ui(_hdr->size, siz);
+    return octal2ui(_hdr->size);
 }
 
 /* --- YOU DO NOT NEED TO CHANGE ANYTHING BELOW THIS LINE --- */
