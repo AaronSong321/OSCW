@@ -17,6 +17,7 @@ using namespace infos::kernel;
 using namespace infos::util;
 using namespace tarfs;
 
+#define li(format, ...) fs_log.messagef(LogLevel::DEBUG, , __VA_ARGS__)
 /**
  * TAR files contain header data encoded as octal values in ASCII.  This function
  * converts this terrible representation into a real unsignedeger.
@@ -125,6 +126,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
         cam("4 %u %u", readNum, off)
     }
     cam("5 %u %u", _file_start_block, _cur_pos)
+	
     return readNum;
 }
 

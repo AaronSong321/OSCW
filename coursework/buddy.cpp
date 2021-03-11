@@ -18,14 +18,6 @@ using namespace infos::kernel;
 using namespace infos::mm;
 using namespace infos::util;
 
-// #define PrintInThisFile
-#ifdef PrintInThisFile
-#define ld(c, ...) mm_log.messagef(LogLevel::DEBUG, c, __VA_ARGS__)
-#define li(c, ...) mm_log.messagef(LogLevel::INFO, c, __VA_ARGS__)
-#else
-#define ld(c, ...) 
-#define li(c, ...)
-#endif
 
 #define MAX_ORDER	17
 
@@ -162,7 +154,7 @@ private:
 
 		auto sourceOrderMinus1 = source_order-1;
 		auto copyPointer = *block_pointer;
-		ld("split 1 %p %ld", *block_pointer, source_order);
+
 		remove_block(*block_pointer, source_order);
 		// ld("split", 1);
 		auto ret = insert_block(copyPointer, sourceOrderMinus1);
@@ -171,7 +163,7 @@ private:
 		// ld("split 2 %p %p %p %p", buddy, *block_pointer, copyPointer, *ret);
 		buddy->next_free = (*ret)->next_free;
 		(*ret)->next_free = buddy;
-		ld("split 2 %p %p %p %p", buddy, *block_pointer, copyPointer, *ret);
+
 		return *ret;
 	}
 	/**
@@ -190,7 +182,7 @@ private:
 		assert(is_correct_alignment_for_order(*block_pointer, source_order));
         assert(source_order < MAX_ORDER);
 
-		ld("merge block %p with %p size=%ld", *block_pointer, (*block_pointer)->next_free, GetSize(source_order));
+
         auto sourceOrderPlus1 = source_order+1;
 		auto removeNodePointer = _free_areas[source_order];
 		auto before = removeNodePointer;
@@ -223,7 +215,7 @@ private:
 	void SplitToLeft(PageDescriptor** ha, uint64_t order, uint64_t until = 0) {
 		assert(*ha);
 		auto copy = *ha;
-		ld("SplitToLeft %p %ld %ld", *ha, order, until);
+
 	    if (order > until) {
 	        split_block(ha, order);
 	        SplitToLeft(&copy, order-1, until);
@@ -249,12 +241,12 @@ public:
 	 */
 	PageDescriptor *alloc_pages(int order) override
 	{
-		ld("enter alloc %d", GetSize(order));
+
 		for (uint64_t o = order; o <= maxOrder; ++o) {
 			if (_free_areas[o]) {
 				SplitToLeft(_free_areas+o, o, order);
 				auto ret = _free_areas[order];
-				ld("alloc %p", ret);
+
 				remove_block(ret, order);
 				return ret;
 			}
@@ -273,7 +265,7 @@ public:
 		// for the order on which it is being freed, for example, it is
 		// illegal to free page 1 in order-1.
 		assert(is_correct_alignment_for_order(pgd, order));
-		ld("free %d %p", GetSize(order), pgd);
+
 		insert_block(pgd, order);
 		TryMerge(pgd, order);
 	}
@@ -306,22 +298,13 @@ public:
 				block = block->next_free;
 			}
 		}
-		if (Pfn(pgd) <= 2) {
-			ld("reserve page 1 %p ", pgd);
-		}
 		auto b = _free_areas[0];
 		while (b) {
 			if (b == pgd) {
 				remove_block(b, 0);
 				return true;
 			}
-			if (Pfn(pgd) <= 2) {
-				ld("reserve page 2 %p ", pgd);
-			}
 			b = b->next_free;
-		}
-		if (Pfn(pgd) <= 2) {
-			ld("reserve page 3 %p ", pgd);
 		}
 		return false;
 	}
@@ -385,7 +368,6 @@ public:
 				snprintf(buffer, sizeof(buffer), "%s%lx ", buffer, sys.mm().pgalloc().pgd_to_pfn(pg));
 				pg = pg->next_free;
 			}
-			
 			mm_log.messagef(LogLevel::DEBUG, "%s", buffer);
 		}
 	}
