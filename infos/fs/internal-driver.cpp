@@ -101,7 +101,7 @@ lqAiI ZZz:lqAII1 KUY { lqAII1:ZZz(ZZZ & ddd, jj ddD):xxc(NULL), xxC(ddd), xXc(dd
             KvK += KKq;
             cam("4 %u %u", kkk, KvK)
         }
-        cam("5 %u %u", xXc, Xxc)
+        cam("5 %u %u %d", xXc, Xxc, kkk)
         qlAaA kkk;
     }
     jq seek(off_t a, SeekType b)override{
