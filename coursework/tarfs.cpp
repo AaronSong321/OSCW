@@ -55,17 +55,6 @@ static inline unsigned octal2ui(const char *data)
 	// Return the current working value.
 	return value;
 }
-static inline unsigned octal2ui(const char* data, size_t len) {
-    unsigned value = 0;
-    int i = 1, factor = 1;
-    while (i < len) {
-        auto ch = data[len - i];
-        value += factor * (ch - '0');
-        factor = factor << 3;
-        ++i;
-    }
-    return value;
-}
 
 // The structure that represents the header block present in
 // TAR files.  A header block occurs before every file, this
@@ -94,8 +83,6 @@ namespace tarfs {
     } __packed;
 }
 
-#define cat(s) fs_log.message(LogLevel::INFO, #s);
-#define cam(s, ...) fs_log.messagef(LogLevel::INFO, s, __VA_ARGS__);
 /**
  * Reads the contents of the file into the buffer, from the specified file offset.
  * @param buffer The buffer to read the data into.
@@ -110,23 +97,17 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
     char fromBuffer[bufferSize];
-    cam("1 buffer=%p, size=%u, off=%u, bufferSize=%d", buffer, size, off, bufferSize)
     while (readNum < size) {
         unsigned discardedContents = off / bufferSize;
         unsigned actualReadContents = off % bufferSize;
         if (!_owner.block_device().read_blocks(buffer, _file_start_block + discardedContents, 1)) {
             break;
         }
-        cam("2 %u %u", discardedContents, actualReadContents)
         size_t filePage = __min(512 - actualReadContents, size - readNum);
-        cam("3 %u", (unsigned)filePage)
         memcpy((void*) ((uintptr_t) buffer + readNum), (void*) ((uintptr_t) fromBuffer + (uintptr_t) actualReadContents), filePage);
         readNum += filePage;
         off += filePage;
-        cam("4 %u %u", readNum, off)
     }
-    cam("5 %u %u %d", _file_start_block, _cur_pos, readNum)
-	
     return readNum;
 }
 
@@ -138,7 +119,6 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
 TarFSNode* TarFS::build_tree() {
     TarFSNode* root = new TarFSNode(nullptr, "", *this);
     uint8_t* buffer = new uint8_t[512];
-	cam("666",0)
     for (unsigned blockCount = 0; blockCount < block_device().block_count(); ++blockCount) {
         if (!block_device().read_blocks(buffer, blockCount, 1)) {
             fs_log.message(LogLevel::ERROR, "unable to read from block device");
@@ -155,7 +135,6 @@ TarFSNode* TarFS::build_tree() {
         }
         blockCount += (blockToRead / 512) + ((blockToRead % 512) ? 1 : 0);
     }
-	cam("777",0)
     delete buffer;
     return root;
 }
