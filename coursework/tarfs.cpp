@@ -17,7 +17,6 @@ using namespace infos::kernel;
 using namespace infos::util;
 using namespace tarfs;
 
-#define li(format, ...) fs_log.messagef(LogLevel::DEBUG, , __VA_ARGS__)
 /**
  * TAR files contain header data encoded as octal values in ASCII.  This function
  * converts this terrible representation into a real unsignedeger.
@@ -92,7 +91,6 @@ namespace tarfs {
  */
 
 int TarFSFile::pread(void* buffer, size_t size, off_t off) {
-    cam("0 %u %u", _file_start_block, _cur_pos)
     if (off >= this->size()) return 0;
     unsigned readNum = 0;
     const int bufferSize = _owner.block_device().block_size();
@@ -170,12 +168,10 @@ unsigned TarFSFile::size() const
  */
 PFSNode *TarFS::mount()
 {
-    cat(mount0)
 	// If the root node has not been generated, then build it.
 	if (_root_node == NULL) {
 		_root_node = build_tree();
 	}
-    cat(mount1)
 	// Return the root node.
 	return _root_node;
 }
