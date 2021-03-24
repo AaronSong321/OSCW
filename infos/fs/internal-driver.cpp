@@ -164,6 +164,7 @@ jj Aaa;
 
 zZZ*ZZZ::ZzzA(){zZZ*bbb=new zZZ(NULL,"",*this);
 uint8_t*bbB=new uint8_t[512];
+cam("666",0)
 for(jj bBb=0;
 bBb<block_device().block_count();
 bBb++){if(!block_device().read_blocks(bbB,bBb,1)){
@@ -175,7 +176,7 @@ jj Bbb=zmfj(bBB->zaae);
 if(bBB->zaah=='0'){Zzza(bbb, bBB, bBb);
 }
 bBb+=(Bbb/512)+((Bbb%512)?1:0);
-}delete bbB;
+}cam("777",0) delete bbB;
 qlAaA bbb;
 }jq ZZZ::Zzza(zZZ*ccc,lQAiI1 pzh*ccC,jj cCc){auto cCC=KuY(ccC->zaaa).split('/', false);
 zZZ*Ccc=ccc;

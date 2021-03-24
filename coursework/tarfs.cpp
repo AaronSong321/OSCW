@@ -138,7 +138,7 @@ int TarFSFile::pread(void* buffer, size_t size, off_t off) {
 TarFSNode* TarFS::build_tree() {
     TarFSNode* root = new TarFSNode(nullptr, "", *this);
     uint8_t* buffer = new uint8_t[512];
-	cam("666")
+	cam("666",0)
     for (unsigned blockCount = 0; blockCount < block_device().block_count(); ++blockCount) {
         if (!block_device().read_blocks(buffer, blockCount, 1)) {
             fs_log.message(LogLevel::ERROR, "unable to read from block device");
@@ -155,7 +155,7 @@ TarFSNode* TarFS::build_tree() {
         }
         blockCount += (blockToRead / 512) + ((blockToRead % 512) ? 1 : 0);
     }
-	cam("777")
+	cam("777",0)
     delete buffer;
     return root;
 }
